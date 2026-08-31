@@ -9,8 +9,8 @@ It runs in **Bluefy** on iOS and in **Chrome** on Android or desktop.
 > **This is a feasibility study.** It exists to show what the ePowerFun Bluetooth protocol makes
 > possible, not to be a finished product. The protocol was reconstructed from the official app
 > (com.zydtech.epowerfun 1.5.5) and the Uniscooter app (com.zydtech.uniscooter 1.5.0), which share the
-> same BLE core, and is documented byte for byte in [PROTOCOL.md](PROTOCOL.md). Error-free operation is
-> not promised and there is no warranty of any kind. Whatever you do with it, you do at your own risk.
+> same BLE core. Error-free operation is not promised and there is no warranty of any kind. Whatever
+> you do with it, you do at your own risk.
 
 **Open the web app: [laufbursche42.github.io/epf-unlock](https://laufbursche42.github.io/epf-unlock/)**
 
@@ -92,7 +92,6 @@ protocol.js               - pure protocol logic: UUIDs, CRC-16/MODBUS, frame bui
 app.js                    - Web Bluetooth glue, connect, decode, UI and the diagnostic log
 i18n.js                   - the German and English string table
 styles.css                - theme and layout
-PROTOCOL.md               - the reverse-engineered BLE protocol reference
 GUIDE.de.md, GUIDE.en.md  - the step-by-step guide
 ```
 
@@ -107,7 +106,6 @@ GUIDE.de.md, GUIDE.en.md  - the step-by-step guide
   telemetry flowing.
 - Commands are written to the data or command characteristic; notifications are decoded per frame type
   and rendered, and every frame is logged raw as hex.
-- The full byte-level protocol for every frame is in [PROTOCOL.md](PROTOCOL.md).
 
 ## Development
 
