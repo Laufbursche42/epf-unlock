@@ -298,16 +298,25 @@ async function initSequence() {
   // Erst in diesem Modus sendet der Scooter 0xAB-Telemetrie und nimmt Schreibbefehle an.
   for (let i = 0; i < 5; i++) { await writeData(EPF.sendStopTran(), 'stop-tran'); await sleep(50); }
   for (let i = 0; i < 3; i++) { await writeData(EPF.buildKeep(), 'keep'); await sleep(50); }
-  await sleep(120); await writeData(EPF.READ.escInfo(), 'read esc-info');
-  await sleep(200); await writeData(EPF.READ.batInfoSN(), 'read sn');
-  await sleep(200); await writeData(EPF.READ.parameters(), 'read parameters');
-  await sleep(200); await writeData(EPF.READ.serviceMileage(), 'read service-km');
+  // Reads exakt wie die EPF-App: je ein sendTran-Puls, 50 ms warten, dann der eigentliche Read.
+  await readWithTran(EPF.READ.escInfo(), 'read esc-info');
+  await readWithTran(EPF.READ.batInfoSN(), 'read sn');
+  await readWithTran(EPF.READ.parameters(), 'read parameters');
+  await readWithTran(EPF.READ.serviceMileage(), 'read service-km');
   // Aktuellen Zustand der weiteren Einstellungen vom Scooter abfragen (statt Default anzeigen)
   if (state.device && state.device.name) $('name-in').value = state.device.name;
-  await sleep(200); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
-  await sleep(200); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
-  await sleep(200); await writeCmd(EPF.AT.driveTypeQuery(), 'AT+DRIVEMODE?');
+  await sleep(120); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
+  await sleep(150); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
+  await sleep(150); await writeCmd(EPF.AT.driveTypeQuery(), 'AT+DRIVEMODE?');
   startPoll();
+}
+// Ein Lese-Befehl wie in der EPF-App: einmal sendTran als kurzer Puls, warten, dann der Read.
+// sendTran haelt den Transparent-Modus nur waehrend des Reads, danach uebernimmt wieder der Keep-Heartbeat.
+async function readWithTran(frame, label) {
+  await writeData(EPF.sendTran(), 'tran');
+  await sleep(60);
+  await writeData(frame, label);
+  await sleep(220);
 }
 function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.baseLoaded = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
 function resetReadFields() {
@@ -317,15 +326,11 @@ function resetReadFields() {
 async function disconnect() { stopPoll(); if (state.device && state.device.gatt.connected) state.device.gatt.disconnect(); }
 function startPoll() {
   stopPoll();
-  let tick = 0;
-  // Mirror des EPF-App-Idle-Loops (startIdle / C01421): laufend sendTran als Heartbeat, der im
-  // Monitor-Modus die 0xAB-Telemetrie ausloest, plus periodisch Parameter lesen (0x03).
-  state.pollTimer = setInterval(() => {
-    tick++;
-    writeData(EPF.sendTran(), 'tran').catch(() => {});
-    if (tick % 6 === 0) writeData(EPF.READ.parameters(), 'read params').catch(() => {});
-  }, 500);
-  log('poll started (tran heartbeat, param refresh)');
+  // Monitor-Heartbeat exakt wie die EPF-App (sendKeep = "Keep Monitor Mode", a5 02 fd 5a).
+  // WICHTIG: kein Dauer-sendTran. sendTran haelt den Transparent-/UF-Modus, in dem der Scooter
+  // das Gas sperrt. Genau das war der Fehler, warum der Scooter verbunden kein Gas annahm.
+  state.pollTimer = setInterval(() => { writeData(EPF.buildKeep(), 'keep').catch(() => {}); }, 400);
+  log('poll started (keep monitor heartbeat)');
 }
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -474,7 +479,7 @@ function wireControls() {
     state.base.limitMode3 = clampByte($('lm3-in').value); state.base.limitCruise = clampByte($('lc-in').value);
     updateLimitPreview(); sendBaseParams();
   });
-  $('btn-read-limits').addEventListener('click', () => writeData(EPF.READ.parameters(), 'read parameters'));
+  $('btn-read-limits').addEventListener('click', () => readWithTran(EPF.READ.parameters(), 'read parameters'));
   ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => $(id).addEventListener('input', updateLimitPreview));
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
