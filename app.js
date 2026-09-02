@@ -6,7 +6,15 @@
  * Das Log bleibt technisch und englisch (ASCII), damit ein Mitschnitt in einer Sprache bleibt.
  */
 
-const BUILD = 'v1';
+// Build-Anzeige aus der Asset-Version des eigenen Script-Tags (index.html app.js?v=N),
+// damit die Footer-Version bei jedem Deploy automatisch mitzieht, statt fest verdrahtet zu sein.
+const BUILD = (function () {
+  try {
+    const s = document.currentScript || Array.prototype.slice.call(document.scripts).find(function (x) { return /app\.js/.test(x.src); });
+    const m = s && s.src.match(/[?&]v=([^&]+)/);
+    return m ? ('v' + m[1]) : 'dev';
+  } catch (e) { return 'dev'; }
+})();
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang';
 
 const $ = (id) => document.getElementById(id);
