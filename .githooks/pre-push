@@ -14,14 +14,17 @@ cd "$REPO_ROOT" || exit 0
 
 echo "----- pre-push: full security scan ------------------------------"
 RC=0
-if command -v python >/dev/null 2>&1; then PY=python; else PY=python3; fi
+PY=""
+for cand in python3 "py -3" python; do
+  if $cand -c "" >/dev/null 2>&1; then PY="$cand"; break; fi
+done
 
 for f in $(git ls-files '*.js'); do
   if node --check "$f"; then echo "PASS [js] $f"; else echo "FAIL [js] $f"; RC=1; fi
 done
 
 if [ -f scripts/security-scan.py ]; then
-  "$PY" scripts/security-scan.py || RC=1
+  if [ -n "$PY" ]; then $PY scripts/security-scan.py || RC=1; else echo "WARN: no working python found, skipping security scan"; fi
 fi
 
 echo "-----------------------------------------------------------------"

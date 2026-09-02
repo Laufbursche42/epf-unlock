@@ -155,9 +155,16 @@ fi
 # =================================================================
 # PHASE D - web security scan (XSS/injection sinks, inline handlers, CSP, ...)
 # =================================================================
-if command -v python >/dev/null 2>&1; then PY=python; else PY=python3; fi
+PY=""
+for cand in python3 "py -3" python; do
+  if $cand -c "" >/dev/null 2>&1; then PY="$cand"; break; fi
+done
 if [ -f "$REPO_ROOT/scripts/security-scan.py" ]; then
-  if "$PY" "$REPO_ROOT/scripts/security-scan.py"; then :; else RC=1; fi
+  if [ -n "$PY" ]; then
+    if $PY "$REPO_ROOT/scripts/security-scan.py"; then :; else RC=1; fi
+  else
+    echo "WARN: no working python found, skipping web-security scan"
+  fi
 fi
 
 # =================================================================

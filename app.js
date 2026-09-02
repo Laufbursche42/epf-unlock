@@ -285,15 +285,20 @@ async function initSequence() {
   await writeCmd(EPF.AT.hasPwdQuery(), 'AT+TYPE?');
   const pwd = $('pwd-in').value;
   if (pwd) { await sleep(150); await writeCmd(EPF.AT.pwd(pwd), 'AT+PWD[***]'); }
-  await sleep(250); await writeData(EPF.READ.escInfo(), 'read esc-info');
-  await sleep(250); await writeData(EPF.READ.batInfoSN(), 'read sn');
-  await sleep(250); await writeData(EPF.READ.parameters(), 'read parameters');
-  await sleep(250); await writeData(EPF.READ.serviceMileage(), 'read service-km');
+  // Exakt wie die EPF-App auf Verbindung (BleCore$listener$1$onConnectStatusChanged$1):
+  // erst 5x sendStopTran (raus aus dem Transparent-Modus), dann 3x sendKeep (Monitor-Modus starten).
+  // Erst in diesem Modus sendet der Scooter 0xAB-Telemetrie und nimmt Schreibbefehle an.
+  for (let i = 0; i < 5; i++) { await writeData(EPF.sendStopTran(), 'stop-tran'); await sleep(50); }
+  for (let i = 0; i < 3; i++) { await writeData(EPF.buildKeep(), 'keep'); await sleep(50); }
+  await sleep(120); await writeData(EPF.READ.escInfo(), 'read esc-info');
+  await sleep(200); await writeData(EPF.READ.batInfoSN(), 'read sn');
+  await sleep(200); await writeData(EPF.READ.parameters(), 'read parameters');
+  await sleep(200); await writeData(EPF.READ.serviceMileage(), 'read service-km');
   // Aktuellen Zustand der weiteren Einstellungen vom Scooter abfragen (statt Default anzeigen)
   if (state.device && state.device.name) $('name-in').value = state.device.name;
-  await sleep(250); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
-  await sleep(250); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
-  await sleep(250); await writeCmd(EPF.AT.driveTypeQuery(), 'AT+DRIVEMODE?');
+  await sleep(200); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
+  await sleep(200); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
+  await sleep(200); await writeCmd(EPF.AT.driveTypeQuery(), 'AT+DRIVEMODE?');
   startPoll();
 }
 function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.baseLoaded = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
@@ -302,7 +307,18 @@ function resetReadFields() {
   ['t-speed', 't-mode', 't-batt', 't-lock', 't-volt', 't-curr', 't-power', 't-esctemp', 't-motortemp', 't-trip', 't-total', 't-fw'].forEach(id => setTile(id, null));
 }
 async function disconnect() { stopPoll(); if (state.device && state.device.gatt.connected) state.device.gatt.disconnect(); }
-function startPoll() { stopPoll(); state.pollTimer = setInterval(() => { writeData(EPF.sendTran(), 'keep').catch(() => {}); }, 500); log('poll started (keep frame every 500 ms)'); }
+function startPoll() {
+  stopPoll();
+  let tick = 0;
+  // Mirror des EPF-App-Idle-Loops (startIdle / C01421): laufend sendTran als Heartbeat, der im
+  // Monitor-Modus die 0xAB-Telemetrie ausloest, plus periodisch Parameter lesen (0x03).
+  state.pollTimer = setInterval(() => {
+    tick++;
+    writeData(EPF.sendTran(), 'tran').catch(() => {});
+    if (tick % 6 === 0) writeData(EPF.READ.parameters(), 'read params').catch(() => {});
+  }, 500);
+  log('poll started (tran heartbeat, param refresh)');
+}
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
