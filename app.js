@@ -326,11 +326,16 @@ function resetReadFields() {
 async function disconnect() { stopPoll(); if (state.device && state.device.gatt.connected) state.device.gatt.disconnect(); }
 function startPoll() {
   stopPoll();
-  // Monitor-Heartbeat exakt wie die EPF-App (sendKeep = "Keep Monitor Mode", a5 02 fd 5a).
-  // WICHTIG: kein Dauer-sendTran. sendTran haelt den Transparent-/UF-Modus, in dem der Scooter
-  // das Gas sperrt. Genau das war der Fehler, warum der Scooter verbunden kein Gas annahm.
-  state.pollTimer = setInterval(() => { writeData(EPF.buildKeep(), 'keep').catch(() => {}); }, 400);
-  log('poll started (keep monitor heartbeat)');
+  // Ein Poll-Zyklus wie der App-Idle-Loop (startIdle / C01421): sendTran, kurz darauf ein
+  // Parameter-Read (immer GEPAART, nie ein haengendes Tran). Dazu jeder Zyklus ein sendKeep als
+  // Heartbeat, der die 0xAB/0xAF-Telemetrie ausloest. Reiner Keep-Poll liefert bei manchen
+  // Geraeten (ePF pulse) keine Daten, ein haengendes Dauer-Tran sperrt das Gas - daher genau dieser Mix.
+  state.pollTimer = setInterval(() => {
+    writeData(EPF.buildKeep(), 'keep').catch(() => {});
+    writeData(EPF.sendTran(), 'tran').catch(() => {});
+    setTimeout(() => { if (state.connected) writeData(EPF.READ.parameters(), 'read params').catch(() => {}); }, 100);
+  }, 600);
+  log('poll started (keep + tran + param read)');
 }
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -354,7 +359,8 @@ async function writeCmd(bytes, label) {
 }
 async function sendBaseParams() {
   if (!state.baseLoaded) { log('aborted: base state not read yet, would write defaults; wait for telemetry plus parameters', 'log-err'); return; }
-  await writeData(EPF.buildBaseParamsFrame(state.base), 'setBaseParams');
+  // Mit dem vom Geraet gelernten Monitor-Kopf schreiben (0xAB Standard, 0xAF bei Custom-Head-Geraeten).
+  await writeData(EPF.buildBaseParamsFrame(state.base, state.customHeadMonitor), 'setBaseParams');
 }
 
 // --------------------------- Empfang ---------------------------

@@ -147,10 +147,11 @@ const EPF = (function () {
     return v & 0xff;
   }
 
-  // Baut aus einem vollständigen Basis-Zustand den Monitor-Frame (wie setBaseParams)
-  function buildBaseParamsFrame(state) {
+  // Baut aus einem vollständigen Basis-Zustand den Monitor-Frame (wie setBaseParams).
+  // headMonitor: der (ggf. gelernte) Monitor-Kopf des Geräts, Standard 0xAB.
+  function buildBaseParamsFrame(state, headMonitor) {
     const val = encodeSwitchByte(state);
-    return buildMonitor(val, state.limitCruise, state.limitMode1, state.limitMode2, state.limitMode3);
+    return buildMonitor(val, state.limitCruise, state.limitMode1, state.limitMode2, state.limitMode3, headMonitor);
   }
 
   // Generischer Register-Schreibbefehl RW_PARAMETER 0x17 (BleCore.java C01361:708-729)
@@ -243,14 +244,7 @@ const EPF = (function () {
     const head = buf[0] & 0xff;
     const cmd = buf[1] & 0xff;
 
-    // HEAD_MONITOR 0xAB: Echtzeit-Telemetrie (0x00) bzw. Basisparameter/Limits (0x01)
-    if (head === HEAD_MONITOR || (state && head === state.customHeadMonitor)) {
-      if (cmd === 0x00) return { type: "monitor", data: parseMonitor(buf, state), hex };
-      if (cmd === 0x01) return { type: "baseParams", data: parseBaseParams(buf), hex };
-      return { type: "monitorUnknown", hex };
-    }
-
-    // HEAD_ESC 0x01: ESC-Info, Batterie, Parameter, Schreibquittungen
+    // ESC-Kanal (Kopf 0x01 bzw. customHeadEsc): Reads, Batterie, Parameter, Schreibquittungen.
     if (head === HEAD_ESC || (state && head === state.customHeadEsc)) {
       switch (cmd) {
         case OP.READ_PARAMETER: return { type: "params", data: collectParams(buf, state), hex };
@@ -264,6 +258,17 @@ const EPF = (function () {
         default:                return { type: "escUnknown", hex };
       }
     }
+
+    // Monitor-Kanal: Kopf 0xAB (Standard) ODER ein Custom-Head (z. B. 0xAF beim ePF pulse),
+    // erkannt am Sub-Kommando 0x00 (Telemetrie) bzw. 0x01 (Basisparameter). Der Kopf wird aus
+    // dem Frame GELERNT und fuer die eigenen Schreib-Frames (sendMonitor) uebernommen, genau wie
+    // die App per Config.currentHeadMonitor (SubPackageOnce.isInArray, BleCore.java:882).
+    if (cmd === 0x00 || cmd === 0x01) {
+      if (state) state.customHeadMonitor = head;
+      if (cmd === 0x00) return { type: "monitor", data: parseMonitor(buf, state), hex };
+      return { type: "baseParams", data: parseBaseParams(buf), hex };
+    }
+
     return { type: "unknown", hex };
   }
 
