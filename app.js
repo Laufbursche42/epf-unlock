@@ -104,6 +104,7 @@ function applyLang() {
   { const el = $('build-ver'); if (el) el.textContent = t('buildLabel') + ' ' + BUILD; }
   document.querySelectorAll('#langs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   { const el = $('status'); setStatus(el ? el.dataset.state : 'disconnected'); }
+  updateLockState(); // Knopf-Text plus Zustandszeile haben kein data-t und werden hier neu gesetzt
   try { localStorage.setItem(LS_LANG, lang); } catch (e) {}
 }
 function initLangSwitch() {
@@ -209,9 +210,9 @@ function openDocFile(file, anchor, titleKey) {
 const HELP = {
   disclaimer: ['footDisclaimer', 'disclaimerText'],
   adv: ['advTitle', 'helpAdv'],
-  // Tuning
+  // Tempo sperren / entsperren
+  hLs: ['lsTitle', 'hLs'], hMaxRow: ['lblMax', 'hMaxRow'],
   hEco: ['lblEco', 'hEco'], hComfort: ['lblComfort', 'hComfort'], hSport: ['lblSport', 'hSport'], hCruise: ['lblCruise', 'hCruise'],
-  hMax: ['lblMax', 'hMax'],
   // Einstellungen
   hGear: ['lblGear', 'hGear'], hHead: ['lblHead', 'hHead'], hAtmo: ['lblAtmo', 'hAtmo'], hCruiseSw: ['lblCruiseSw', 'hCruiseSw'],
   hBoot: ['lblBoot', 'hBoot'], hUnit: ['lblUnit', 'hUnit'], hLock: ['lblLock', 'hLock'],
@@ -253,7 +254,7 @@ function setStatus(s) {
   const cb = $('btn-conn');
   if (cb) { const on = (s === 'connecting' || s === 'linking' || s === 'connected'); cb.textContent = on ? t('btnDisconnect') : t('btnConnect'); cb.dataset.act = on ? 'disconnect' : 'connect'; }
 }
-const CTRL_IDS = ['btn-write-limits', 'btn-read-limits', 'btn-write-max', 'btn-read-max', 'max-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
+const CTRL_IDS = ['btn-lock-toggle', 'max-in', 'lm1-in', 'lm2-in', 'lm3-in', 'lc-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
   'btn-boot', 'btn-unit', 'btn-lock', 'name-in', 'btn-name', 'newpwd-in', 'btn-setpwd', 'btn-pwdprot',
   'btn-nfc', 'btn-blinker', 'drive-in', 'btn-drive', 'btn-delnfc', 'btn-resettrip',
   'btn-qdevice', 'btn-quid', 'btn-qtype'];
@@ -490,49 +491,68 @@ function syncSettingSelects() {
   $('unit-in').value = b.metricInchSw ? '1' : '0';
   $('lock-in').value = b.lockSw ? '1' : '0';
 }
-// Eingabefeld der Hoechstgeschwindigkeit initial mit dem am Geraet gelesenen Register-0x20-Wert
-// vorbelegen. Nur wenn das Feld leer ist, damit eine laufende Nutzereingabe nicht ueberschrieben
-// wird. Der tatsaechlich gelesene Wert steht zur Bestaetigung zusaetzlich in der Adv-Tabelle.
+// Eingabefeld der Hoechstgeschwindigkeit (Register 0x20) mit dem am Geraet gelesenen Wert
+// vorbelegen, nur wenn leer, damit eine laufende Nutzereingabe nicht ueberschrieben wird.
 function syncMaxInput() {
   const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
   const el = $('max-in');
-  if (el && v && !el.value) el.value = v;
+  if (el && typeof v === 'number' && v > 0 && !el.value) el.value = v;
+  updateLockState();
+}
+// Gesperrt oder entsperrt wird am gelesenen Register-0x20-Wert erkannt: ueber 22 km/h = entsperrt.
+function isUnlocked() {
+  const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
+  return typeof v === 'number' && v > 22;
+}
+// Ein Knopf fuer beide Richtungen: Beschriftung und Zustandszeile richten sich nach dem zuletzt
+// gelesenen Register-0x20-Wert.
+function updateLockState() {
+  const btn = $('btn-lock-toggle'); if (!btn) return;
+  const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
+  const st = $('ls-state');
+  if (!state.connected || typeof v !== 'number' || v <= 0) {
+    btn.textContent = t('btnUnlock');
+    if (st) st.textContent = '';
+    return;
+  }
+  const unlocked = v > 22;
+  btn.textContent = unlocked ? t('btnLock') : t('btnUnlock');
+  if (st) st.textContent = (unlocked ? t('lsStateUnlocked') : t('lsStateLocked')) + ' (' + v + ' km/h)';
 }
 
 // --------------------------- Bedienelemente ---------------------------
 function clampByte(v) { let n = parseInt(v, 10); if (isNaN(n)) n = 0; return Math.max(0, Math.min(255, n)); }
-function updateLimitPreview() {
-  const preview = EPF.buildBaseParamsFrame({ ...state.base,
-    limitMode1: clampByte($('lm1-in').value), limitMode2: clampByte($('lm2-in').value),
-    limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value) });
-  $('limit-preview').textContent = 'Frame: ' + EPF.toHex(preview);
+// Alle relevanten Tempo-Hebel auf einmal setzen: erst die Fahrstufen per Monitor-Frame (Klon, nur
+// die Limit-Felder), dann die Werksdrossel Register 0x20 per RW-Frame 0x17, danach zurueck in den
+// Monitor-Modus und Register 0x20 erneut lesen (aktualisiert Zustandszeile plus Adv-Tabelle).
+async function applyLockSpeed(maxKmh, eco, comfort, sport, cruise) {
+  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
+  await sendBaseChange({ limitMode1: eco, limitMode2: comfort, limitMode3: sport, limitCruise: cruise });
+  await sleep(160);
+  await writeData(EPF.sendTran(), 'tran'); await sleep(40);
+  await writeData(EPF.buildSetMaxSpeed(maxKmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
+  await backToMonitor();
+  await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); await backToMonitor();
 }
 function wireControls() {
   $('btn-conn').addEventListener('click', () => { if ($('btn-conn').dataset.act === 'disconnect') disconnect(); else connect(); });
 
-  // Tuning
-  $('btn-write-limits').addEventListener('click', () => {
-    updateLimitPreview();
-    sendBaseChange({
-      limitMode1: clampByte($('lm1-in').value), limitMode2: clampByte($('lm2-in').value),
-      limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
-    });
+  // Tempo sperren / entsperren: ein Knopf, der je nach aktuellem Zustand alle Hebel auf einmal setzt.
+  $('btn-lock-toggle').addEventListener('click', async () => {
+    if (isUnlocked()) {
+      await applyLockSpeed(20, 20, 20, 20, 20); // Sperren: alles zurueck auf 20 km/h (legal)
+    } else {
+      const mx = parseInt($('max-in').value, 10); // Entsperren: die eingetragenen Werte schreiben
+      if (isNaN(mx) || mx < 1 || mx > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
+      await applyLockSpeed(mx, clampByte($('lm1-in').value), clampByte($('lm2-in').value), clampByte($('lm3-in').value), clampByte($('lc-in').value));
+    }
   });
-  $('btn-read-limits').addEventListener('click', async () => { await readWithTran(EPF.READ.parameters(), 'read parameters'); await backToMonitor(); });
-
-  // Hoechstgeschwindigkeit ueber Register 0x20 (RW-Frame 0x17). Ablauf wie setAdvParams der App:
-  // sendTran-Puls, kurz warten, dann der 0x17-Schreib-Frame, danach sauber zurueck in den
-  // Monitor-Modus und den neuen Wert erneut lesen (Bestaetigung in der Adv-Tabelle).
-  $('btn-write-max').addEventListener('click', async () => {
-    const kmh = parseInt($('max-in').value, 10);
-    if (isNaN(kmh) || kmh < 1 || kmh > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
-    await writeData(EPF.sendTran(), 'tran'); await sleep(40);
-    await writeData(EPF.buildSetMaxSpeed(kmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
-    await backToMonitor();
-    await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); await backToMonitor();
+  // Tippt der Nutzer eine Hoechstgeschwindigkeit, ziehen zu niedrige Fahrstufen automatisch nach,
+  // sonst wuerde die niedrigere Stufe abriegeln. Hoehere Stufen bleiben, Feinjustierung danach moeglich.
+  $('max-in').addEventListener('input', () => {
+    const mx = parseInt($('max-in').value, 10); if (isNaN(mx)) return;
+    ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => { const el = $(id); if (el && (parseInt(el.value, 10) || 0) < mx) el.value = mx; });
   });
-  $('btn-read-max').addEventListener('click', async () => { await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); await backToMonitor(); });
-  ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => $(id).addEventListener('input', updateLimitPreview));
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
   const sw = (btn, sel, key) => $(btn).addEventListener('click', () => sendBaseChange({ [key]: ($(sel).value === '1') }));
