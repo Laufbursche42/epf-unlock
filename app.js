@@ -28,7 +28,10 @@ const state = {
   escInfoBuf: new Uint8Array(96),
   batInfoBuf: new Uint8Array(32),
   paramsBuf: new Uint8Array(400),
-  baseLoaded: false,
+  // Getrennte Ladezustaende: geschrieben wird erst, wenn BEIDE Haelften des Geraetezustands
+  // vorliegen - Schalter plus Gang aus dem Monitor-Frame (af 00) UND die Limits aus dem
+  // Basisparameter-Frame (af 01). Sonst wuerde das value-Byte mit Default-Schaltern gebaut.
+  monitorSeen: false, baseParamsSeen: false,
   base: {
     gearPosition: 1,
     headLightSw: false, atmosphereLightSw: false, cruiseControlSw: false,
@@ -308,7 +311,16 @@ async function initSequence() {
   await sleep(120); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
   await sleep(150); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
   await sleep(150); await writeCmd(EPF.AT.driveTypeQuery(), 'AT+DRIVEMODE?');
+  await backToMonitor();
   startPoll();
+}
+// Sauber zurueck in den Monitor-Modus, exakt wie stopGetAdvParams der EPF-App: erst raus aus
+// dem Transparent-/UF-Modus (5x sendStopTran), dann Monitor-Streaming wieder an (3x sendKeep).
+// Sonst haelt der letzte sendTran-Puls eines Reads den Scooter im UF-Modus und das Gas bleibt
+// gesperrt. Nach dem Burst streamt der Scooter die Telemetrie wieder von selbst.
+async function backToMonitor() {
+  for (let i = 0; i < 5; i++) { await writeData(EPF.sendStopTran(), 'stop-tran'); await sleep(40); }
+  for (let i = 0; i < 3; i++) { await writeData(EPF.buildKeep(), 'keep'); await sleep(40); }
 }
 // Ein Lese-Befehl wie in der EPF-App: einmal sendTran als kurzer Puls, warten, dann der Read.
 // sendTran haelt den Transparent-Modus nur waehrend des Reads, danach uebernimmt wieder der Keep-Heartbeat.
@@ -318,7 +330,7 @@ async function readWithTran(frame, label) {
   await writeData(frame, label);
   await sleep(220);
 }
-function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.baseLoaded = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
+function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.monitorSeen = false; state.baseParamsSeen = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
 function resetReadFields() {
   ['gear-in', 'head-in', 'atmo-in', 'cruise-in', 'boot-in', 'unit-in', 'lock-in', 'pwdprot-in', 'nfc-in', 'blinker-in', 'name-in', 'drive-in'].forEach(id => { const el = $(id); if (el) el.value = ''; });
   ['t-speed', 't-mode', 't-batt', 't-lock', 't-volt', 't-curr', 't-power', 't-esctemp', 't-motortemp', 't-trip', 't-total', 't-fw'].forEach(id => setTile(id, null));
@@ -326,16 +338,17 @@ function resetReadFields() {
 async function disconnect() { stopPoll(); if (state.device && state.device.gatt.connected) state.device.gatt.disconnect(); }
 function startPoll() {
   stopPoll();
-  // Ein Poll-Zyklus wie der App-Idle-Loop (startIdle / C01421): sendTran, kurz darauf ein
-  // Parameter-Read (immer GEPAART, nie ein haengendes Tran). Dazu jeder Zyklus ein sendKeep als
-  // Heartbeat, der die 0xAB/0xAF-Telemetrie ausloest. Reiner Keep-Poll liefert bei manchen
-  // Geraeten (ePF pulse) keine Daten, ein haengendes Dauer-Tran sperrt das Gas - daher genau dieser Mix.
+  // Ruhezustand exakt wie die EPF-App (EventMode GET_MONITORING, BleCore.smali): Nach dem
+  // Connect-Burst (5x sendStopTran, 3x sendKeep) streamt der Scooter die Telemetrie
+  // (0xAB/0xAF, af 00 plus af 01) von selbst. Die App haelt den Monitor-Modus nur mit
+  // periodischem sendKeep wach (im Original je 5. Frame). KEIN sendTran und KEIN 01 03-Read
+  // im Ruhezustand - ein dauerhaftes sendTran wuerde den Scooter im UF-/Transparent-Modus
+  // festhalten und das Gas sperren (genau der v9-Fehler). Der Register-Read passiert nur
+  // einmalig beim Verbinden bzw auf Knopfdruck ueber readWithTran.
   state.pollTimer = setInterval(() => {
-    writeData(EPF.buildKeep(), 'keep').catch(() => {});
-    writeData(EPF.sendTran(), 'tran').catch(() => {});
-    setTimeout(() => { if (state.connected) writeData(EPF.READ.parameters(), 'read params').catch(() => {}); }, 100);
-  }, 600);
-  log('poll started (keep + tran + param read)');
+    if (state.connected) writeData(EPF.buildKeep(), 'keep').catch(() => {});
+  }, 1500);
+  log('poll started (nur keep-heartbeat, monitor-modus)');
 }
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -357,10 +370,16 @@ async function writeCmd(bytes, label) {
     log('TX ' + (label ? label + ' ' : '') + new TextDecoder().decode(bytes), 'log-tx');
   } catch (e) { log('cmd write failed: ' + e.message, 'log-err'); }
 }
-async function sendBaseParams() {
-  if (!state.baseLoaded) { log('aborted: base state not read yet, would write defaults; wait for telemetry plus parameters', 'log-err'); return; }
+function baseReady() { return state.monitorSeen && state.baseParamsSeen; }
+// Exakt wie setBaseParams der Hersteller-App (BleCore.java:2704-2744): den zuletzt vom Geraet
+// gelesenen Zustand KLONEN, nur das eine geaenderte Feld ueberschreiben und daraus das value-Byte
+// plus die Limits neu kodieren. state.base selbst bleibt unberuehrt - es ist der Geraete-Spiegel
+// und wird nur vom Empfangs-Parser aktualisiert. So kann kein UI-Feld die Schalter-Bits verbiegen.
+async function sendBaseChange(changes) {
+  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen (Telemetrie plus Basiswerte), damit keine Default-Schalter geschrieben werden', 'log-err'); return; }
+  const clone = Object.assign({}, state.base, changes);
   // Mit dem vom Geraet gelernten Monitor-Kopf schreiben (0xAB Standard, 0xAF bei Custom-Head-Geraeten).
-  await writeData(EPF.buildBaseParamsFrame(state.base, state.customHeadMonitor), 'setBaseParams');
+  await writeData(EPF.buildBaseParamsFrame(clone, state.customHeadMonitor), 'setBaseParams');
 }
 
 // --------------------------- Empfang ---------------------------
@@ -370,11 +389,13 @@ function applyData(r) {
   if (!r || !r.type) return;
   switch (r.type) {
     case 'monitor':
+      // state.base ist der reine Geraete-Spiegel und wird NUR hier (aus Geraete-Frames)
+      // geschrieben, nie durch die UI. Schalter plus Gang stammen aus diesem Monitor-Frame.
       state.monitor = r.data; Object.assign(state.base, r.data.switches);
       state.base.gearPosition = r.data.gearPosition || state.base.gearPosition;
-      state.baseLoaded = true; renderTiles(); syncSettingSelects(); break;
+      state.monitorSeen = true; renderTiles(); syncSettingSelects(); break;
     case 'baseParams':
-      state.baseLoaded = true;
+      state.baseParamsSeen = true;
       state.base.limitCruise = r.data.limitCruise; state.base.limitMode1 = r.data.limitMode1;
       state.base.limitMode2 = r.data.limitMode2; state.base.limitMode3 = r.data.limitMode3;
       state.thousandUnits = r.data.thousandUnits; state.displayVersion = r.data.displayVersion;
@@ -481,16 +502,18 @@ function wireControls() {
 
   // Tuning
   $('btn-write-limits').addEventListener('click', () => {
-    state.base.limitMode1 = clampByte($('lm1-in').value); state.base.limitMode2 = clampByte($('lm2-in').value);
-    state.base.limitMode3 = clampByte($('lm3-in').value); state.base.limitCruise = clampByte($('lc-in').value);
-    updateLimitPreview(); sendBaseParams();
+    updateLimitPreview();
+    sendBaseChange({
+      limitMode1: clampByte($('lm1-in').value), limitMode2: clampByte($('lm2-in').value),
+      limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
+    });
   });
-  $('btn-read-limits').addEventListener('click', () => readWithTran(EPF.READ.parameters(), 'read parameters'));
+  $('btn-read-limits').addEventListener('click', async () => { await readWithTran(EPF.READ.parameters(), 'read parameters'); await backToMonitor(); });
   ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => $(id).addEventListener('input', updateLimitPreview));
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
-  const sw = (btn, sel, key) => $(btn).addEventListener('click', () => { state.base[key] = ($(sel).value === '1'); sendBaseParams(); });
-  $('btn-gear').addEventListener('click', () => { state.base.gearPosition = parseInt($('gear-in').value, 10) || 1; sendBaseParams(); });
+  const sw = (btn, sel, key) => $(btn).addEventListener('click', () => sendBaseChange({ [key]: ($(sel).value === '1') }));
+  $('btn-gear').addEventListener('click', () => sendBaseChange({ gearPosition: parseInt($('gear-in').value, 10) || 1 }));
   sw('btn-head', 'head-in', 'headLightSw');
   sw('btn-atmo', 'atmo-in', 'atmosphereLightSw');
   sw('btn-cruise', 'cruise-in', 'cruiseControlSw');
