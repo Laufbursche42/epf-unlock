@@ -211,6 +211,7 @@ const HELP = {
   adv: ['advTitle', 'helpAdv'],
   // Tuning
   hEco: ['lblEco', 'hEco'], hComfort: ['lblComfort', 'hComfort'], hSport: ['lblSport', 'hSport'], hCruise: ['lblCruise', 'hCruise'],
+  hMax: ['lblMax', 'hMax'],
   // Einstellungen
   hGear: ['lblGear', 'hGear'], hHead: ['lblHead', 'hHead'], hAtmo: ['lblAtmo', 'hAtmo'], hCruiseSw: ['lblCruiseSw', 'hCruiseSw'],
   hBoot: ['lblBoot', 'hBoot'], hUnit: ['lblUnit', 'hUnit'], hLock: ['lblLock', 'hLock'],
@@ -252,7 +253,7 @@ function setStatus(s) {
   const cb = $('btn-conn');
   if (cb) { const on = (s === 'connecting' || s === 'linking' || s === 'connected'); cb.textContent = on ? t('btnDisconnect') : t('btnConnect'); cb.dataset.act = on ? 'disconnect' : 'connect'; }
 }
-const CTRL_IDS = ['btn-write-limits', 'btn-read-limits', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
+const CTRL_IDS = ['btn-write-limits', 'btn-read-limits', 'btn-write-max', 'btn-read-max', 'max-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
   'btn-boot', 'btn-unit', 'btn-lock', 'name-in', 'btn-name', 'newpwd-in', 'btn-setpwd', 'btn-pwdprot',
   'btn-nfc', 'btn-blinker', 'drive-in', 'btn-drive', 'btn-delnfc', 'btn-resettrip',
   'btn-qdevice', 'btn-quid', 'btn-qtype'];
@@ -306,6 +307,7 @@ async function initSequence() {
   await readWithTran(EPF.READ.batInfoSN(), 'read sn');
   await readWithTran(EPF.READ.parameters(), 'read parameters');
   await readWithTran(EPF.READ.serviceMileage(), 'read service-km');
+  await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); // Register 0x20 gezielt lesen (limitedSpeedValue)
   // Aktuellen Zustand der weiteren Einstellungen vom Scooter abfragen (statt Default anzeigen)
   if (state.device && state.device.name) $('name-in').value = state.device.name;
   await sleep(120); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
@@ -400,7 +402,7 @@ function applyData(r) {
       state.base.limitMode2 = r.data.limitMode2; state.base.limitMode3 = r.data.limitMode3;
       state.thousandUnits = r.data.thousandUnits; state.displayVersion = r.data.displayVersion;
       renderTuningInputs(); renderInfo(); renderTiles(); break;
-    case 'params': if (r.data && r.data.full) { state.fullAdv = r.data.full; renderAdv(); } break;
+    case 'params': if (r.data && r.data.full) { state.fullAdv = r.data.full; renderAdv(); syncMaxInput(); } break;
     case 'escInfo': if (r.data && r.data.complete) { state.escInfo = r.data; renderInfo(); renderTiles(); } break;
     case 'batInfo': if (r.data && r.data.complete) { state.batInfo = r.data; renderInfo(); } break;
     case 'writeAck': log('param write ack: ' + (r.ok ? 'ok' : 'FAIL'), r.ok ? 'log-ok' : 'log-err'); break;
@@ -488,6 +490,14 @@ function syncSettingSelects() {
   $('unit-in').value = b.metricInchSw ? '1' : '0';
   $('lock-in').value = b.lockSw ? '1' : '0';
 }
+// Eingabefeld der Hoechstgeschwindigkeit initial mit dem am Geraet gelesenen Register-0x20-Wert
+// vorbelegen. Nur wenn das Feld leer ist, damit eine laufende Nutzereingabe nicht ueberschrieben
+// wird. Der tatsaechlich gelesene Wert steht zur Bestaetigung zusaetzlich in der Adv-Tabelle.
+function syncMaxInput() {
+  const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
+  const el = $('max-in');
+  if (el && v && !el.value) el.value = v;
+}
 
 // --------------------------- Bedienelemente ---------------------------
 function clampByte(v) { let n = parseInt(v, 10); if (isNaN(n)) n = 0; return Math.max(0, Math.min(255, n)); }
@@ -509,6 +519,19 @@ function wireControls() {
     });
   });
   $('btn-read-limits').addEventListener('click', async () => { await readWithTran(EPF.READ.parameters(), 'read parameters'); await backToMonitor(); });
+
+  // Hoechstgeschwindigkeit ueber Register 0x20 (RW-Frame 0x17). Ablauf wie setAdvParams der App:
+  // sendTran-Puls, kurz warten, dann der 0x17-Schreib-Frame, danach sauber zurueck in den
+  // Monitor-Modus und den neuen Wert erneut lesen (Bestaetigung in der Adv-Tabelle).
+  $('btn-write-max').addEventListener('click', async () => {
+    const kmh = parseInt($('max-in').value, 10);
+    if (isNaN(kmh) || kmh < 1 || kmh > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
+    await writeData(EPF.sendTran(), 'tran'); await sleep(40);
+    await writeData(EPF.buildSetMaxSpeed(kmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
+    await backToMonitor();
+    await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); await backToMonitor();
+  });
+  $('btn-read-max').addEventListener('click', async () => { await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); await backToMonitor(); });
   ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => $(id).addEventListener('input', updateLimitPreview));
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)

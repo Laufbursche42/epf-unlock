@@ -51,6 +51,14 @@ window.I18N = {
     btnReadLimits: "Aktuelle Werte laden",
     tuningHint: "Das sind die Tempolimits der drei Fahrstufen, dieselben Werte wie in der Hersteller-App. Deren Regler geht nur bis 20 km/h (bei manchen Modellen 22) und sendet am Anschlag selbst den Wert 22. Höhere Werte kannst du hier eintragen. Ob der Controller sie wirklich fährt oder intern abriegelt, zeigt erst der Test am Gerät.",
 
+    maxTitle: "Höchstgeschwindigkeit entdrosseln (Register 0x20)",
+    maxWarn: "<b>Achtung.</b> Das hebt die Werksdrossel an und greift direkt in den Controller ein. Auf öffentlichen Wegen erlischt dadurch in der Regel die Betriebserlaubnis. Nur am eigenen Scooter.",
+    lblMax: "Höchstgeschwindigkeit (km/h)",
+    btnWriteMax: "Höchstgeschwindigkeit schreiben",
+    btnReadMax: "Aktuellen Wert laden",
+    maxHint: "Schreibt Register 0x20 direkt (Wert mal 10), der zweite Tempo-Hebel neben den Fahrstufen. Diesen Weg nutzt die Uniscooter-App, die EPF-App nicht. Die Controller-Firmware kann den Wert intern trotzdem auf 22 km/h abriegeln, das zeigt erst der Test am Gerät.",
+    hMax: "Direkter Schreibzugriff auf das Tempolimit-Register 0x20 des Controllers, Wert in km/h. Getrennt von den drei Fahrstufen. Kann von der Firmware auf 22 km/h begrenzt werden.",
+
     setTitle: "Einstellungen",
     lblGear: "Fahrstufe",
     gear1: "1 (Eco)",
@@ -195,6 +203,14 @@ window.I18N = {
     btnWriteLimits: "Write speed limits",
     btnReadLimits: "Load current values",
     tuningHint: "These are the speed limits of the three ride stages, the same values as in the manufacturer app. Its slider only goes up to 20 km/h (22 on some models) and sends 22 at the top. You can enter higher values here. Whether the controller actually rides them or clamps internally is what the test on the vehicle shows.",
+
+    maxTitle: "Top speed unlock (register 0x20)",
+    maxWarn: "<b>Caution.</b> This lifts the factory limiter and writes the controller directly. On public roads this usually voids the road approval. Your own scooter only.",
+    lblMax: "Top speed (km/h)",
+    btnWriteMax: "Write top speed",
+    btnReadMax: "Read current value",
+    maxHint: "Writes register 0x20 directly (value times 10), the second speed lever besides the ride stages. Uniscooter uses this path, the EPF app does not. The controller firmware may still clamp the value to 22 km/h internally, only the test on the vehicle shows.",
+    hMax: "Direct write to the controller speed-limit register 0x20, value in km/h. Separate from the three ride stages. May be capped to 22 km/h by the firmware.",
 
     setTitle: "Settings",
     lblGear: "Ride stage",

@@ -111,6 +111,7 @@ const EPF = (function () {
     batInfoSN:      () => buildRead(OP.BAT_INFO, 0, 7),        // getSN (BleCore.java:1514)
     parameters:     () => buildRead(OP.READ_PARAMETER, 0, 16), // startGetAdvParams (BleCore.java:1222)
     serviceMileage: () => buildRead(OP.READ_PARAMETER, 74, 4), // getServiceMileage (BleCore.java:508)
+    limitedSpeed:   () => buildRead(OP.READ_PARAMETER, 0x20, 1), // Register 0x20 gezielt lesen (limitedSpeedValue, PROTOCOL 2.12)
   };
 
   // Tempolimit- / Basis-Schalter-Frame, 10 Byte (BleCore.java sendMonitor C01381:881-897)
@@ -173,6 +174,19 @@ const EPF = (function () {
     b[10] = n & 0xff;
     b.set(value, 11);
     return appendCrc16(b);
+  }
+
+  // Hoechstgeschwindigkeit ueber Register 0x20 setzen (limitedSpeedValue), zweiter Tempolimit-Hebel
+  // ausserhalb der Gang-Geschwindigkeiten. Belegt: setAdvParams pos 10 schreibt genau ein Register
+  // 0x20 per RW-Frame 0x17, Wert = round(kmh * opv) mit opv=10 als Int16 Big-Endian
+  // (BleCore$setAdvParams$1.smali:774-825, default_parameter.json no:10 address 32 opv 10,
+  // ValueExt.toBytes16 Big-Endian). 25 km/h -> 250 -> 00 FA -> Frame 01 17 00 20 00 01 00 20 00 01 02 00 fa d2 e7.
+  // Head 0x01 (ESC-Kanal) bzw ein Custom-ESC-Kopf. Achtung: die Controller-Firmware kann den Wert
+  // trotzdem klemmen (z. B. auf 22.0 km/h), das ist geraeteabhaengig (PROTOCOL 2.12).
+  function buildSetMaxSpeed(kmh, head) {
+    const raw = Math.max(0, Math.min(0xffff, Math.round(kmh * 10)));
+    const value = Uint8Array.from([(raw >> 8) & 0xff, raw & 0xff]);
+    return buildRwParam(0x20, value, head);
   }
 
   // Steuer-Frame sendCommand2 (BleCore.java:2254-2270): [0xA5, cmd, ~cmd, 0,0,0,0, 0x5A]
@@ -389,7 +403,7 @@ const EPF = (function () {
     UUID, OP, HEAD_ESC, HEAD_TRAN, END_TRAN, HEAD_MONITOR,
     crc16Modbus, appendCrc16, toHex,
     buildRead, READ, buildMonitor, encodeSwitchByte, buildBaseParamsFrame,
-    buildRwParam, buildControl, sendTran, sendPack, sendStopTran, buildKeep, AT,
+    buildRwParam, buildSetMaxSpeed, buildControl, sendTran, sendPack, sendStopTran, buildKeep, AT,
     parseCmd, parseData, parseMonitor, parseBaseParams, parseFullAdvParams, decodeSwitches,
   };
 })();
