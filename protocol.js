@@ -295,7 +295,7 @@ const EPF = (function () {
     const current = s16BE(buf, 12) / 64.0;
     const reg0 = u16BE(buf, 21);
     return {
-      electricity: u8(buf, 3),                 // Akku in Prozent
+      electricity: u8(buf, 5),                 // Akku in Prozent (Offset 5, setElectricity BleCore$parsingDataBuf$1.smali:533-543)
       gearPosition: u8(buf, 4),
       speedRaw6: u16BE(buf, 6), speedRaw8: u16BE(buf, 8),
       speed: Math.round(speed * 10) / 10,      // km/h (Skalierung /1000 aus Code)
