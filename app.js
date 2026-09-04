@@ -540,7 +540,7 @@ function wireControls() {
   // Tempo sperren / entsperren: ein Knopf, der je nach aktuellem Zustand alle Hebel auf einmal setzt.
   $('btn-lock-toggle').addEventListener('click', async () => {
     if (isUnlocked()) {
-      await applyLockSpeed(20, 20, 20, 20, 20); // Sperren: alles zurueck auf 20 km/h (legal)
+      await applyLockSpeed(22, 22, 22, 22, 22); // Sperren: alles zurueck auf 22 km/h (eKFV: 20 plus 10 Prozent)
     } else {
       const mx = parseInt($('max-in').value, 10); // Entsperren: die eingetragenen Werte schreiben
       if (isNaN(mx) || mx < 1 || mx > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
