@@ -31,9 +31,9 @@ const state = {
   // Getrennte Ladezustaende: geschrieben wird erst, wenn BEIDE Haelften des Geraetezustands
   // vorliegen - Schalter plus Gang aus dem Monitor-Frame (af 00) UND die Limits aus dem
   // Basisparameter-Frame (af 01). Sonst wuerde das value-Byte mit Default-Schaltern gebaut.
-  monitorSeen: false, baseParamsSeen: false,
+  monitorSeen: false, baseParamsSeen: false, uiPrefilled: false,
   base: {
-    gearPosition: 1,
+    gearPosition: 0,
     headLightSw: false, atmosphereLightSw: false, cruiseControlSw: false,
     bootMode: false, metricInchSw: false, lockSw: false,
     limitCruise: 3, limitMode1: 6, limitMode2: 10, limitMode3: 20,
@@ -333,7 +333,7 @@ async function readWithTran(frame, label) {
   await writeData(frame, label);
   await sleep(220);
 }
-function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.monitorSeen = false; state.baseParamsSeen = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
+function onDisconnected() { log('disconnected', 'log-err'); stopPoll(); state.connected = false; state.monitorSeen = false; state.baseParamsSeen = false; state.uiPrefilled = false; state.monitor = null; setControlsEnabled(false); resetReadFields(); setStatus('disconnected'); }
 function resetReadFields() {
   ['gear-in', 'head-in', 'atmo-in', 'cruise-in', 'boot-in', 'unit-in', 'lock-in', 'pwdprot-in', 'nfc-in', 'blinker-in', 'name-in', 'drive-in'].forEach(id => { const el = $(id); if (el) el.value = ''; });
   ['t-speed', 't-mode', 't-batt', 't-lock', 't-volt', 't-curr', 't-power', 't-esctemp', 't-motortemp', 't-trip', 't-total', 't-fw'].forEach(id => setTile(id, null));
@@ -395,14 +395,15 @@ function applyData(r) {
       // state.base ist der reine Geraete-Spiegel und wird NUR hier (aus Geraete-Frames)
       // geschrieben, nie durch die UI. Schalter plus Gang stammen aus diesem Monitor-Frame.
       state.monitor = r.data; Object.assign(state.base, r.data.switches);
-      state.base.gearPosition = r.data.gearPosition || state.base.gearPosition;
-      state.monitorSeen = true; renderTiles(); syncSettingSelects(); break;
+      // gearPosition ist 0-basiert (0=Eco, 1=Comfort, 2=Sport), 0 darf nicht als "leer" gelten.
+      if (r.data.gearPosition != null) state.base.gearPosition = r.data.gearPosition;
+      state.monitorSeen = true; renderTiles(); maybePrefillInputs(); break;
     case 'baseParams':
       state.baseParamsSeen = true;
       state.base.limitCruise = r.data.limitCruise; state.base.limitMode1 = r.data.limitMode1;
       state.base.limitMode2 = r.data.limitMode2; state.base.limitMode3 = r.data.limitMode3;
       state.thousandUnits = r.data.thousandUnits; state.displayVersion = r.data.displayVersion;
-      renderTuningInputs(); renderInfo(); renderTiles(); break;
+      renderInfo(); renderTiles(); maybePrefillInputs(); break;
     case 'params': if (r.data && r.data.full) { state.fullAdv = r.data.full; renderAdv(); syncMaxInput(); } break;
     case 'escInfo': if (r.data && r.data.complete) { state.escInfo = r.data; renderInfo(); renderTiles(); } break;
     case 'batInfo': if (r.data && r.data.complete) { state.batInfo = r.data; renderInfo(); } break;
@@ -429,7 +430,8 @@ function applyCmd(r) {
 
 // --------------------------- Rendering ---------------------------
 function setTile(id, val) { const el = $(id); if (el) el.textContent = (val == null || val === '' ? '-' : val); }
-const GEAR_NAMES = { 1: 'Eco', 2: 'Comfort', 3: 'Sport' };
+// Fahrstufe ist 0-basiert (HomeFragment.java:468-469: 0=Eco, 1=Comfort, 2=Sport).
+const GEAR_NAMES = { 0: 'Eco', 1: 'Comfort', 2: 'Sport' };
 function renderTiles() {
   const m = state.monitor;
   if (m) {
@@ -477,13 +479,22 @@ function renderInfo() {
   if (state.batInfo) setInfoRow('infoSn', state.batInfo.info);
   if (state.displayVersion) setInfoRow('infoVer', state.displayVersion);
 }
+// Eingabefelder (Fahrstufen, Gang, Schalter) einmalig nach dem Verbinden aus dem Geraet vorbelegen.
+// Danach gehoeren sie dem Nutzer und werden vom Live-Stream NICHT mehr ueberschrieben, sonst wuerde
+// jede Eingabe sofort zurueckspringen. Die Live-Kacheln oben zeigen den echten Zustand laufend.
+function maybePrefillInputs() {
+  if (state.uiPrefilled || !baseReady()) return;
+  renderTuningInputs();
+  syncSettingSelects();
+  state.uiPrefilled = true;
+}
 function renderTuningInputs() {
   $('lm1-in').value = state.base.limitMode1; $('lm2-in').value = state.base.limitMode2;
   $('lm3-in').value = state.base.limitMode3; $('lc-in').value = state.base.limitCruise;
 }
 function syncSettingSelects() {
   const b = state.base;
-  $('gear-in').value = String(b.gearPosition || 1);
+  $('gear-in').value = String(b.gearPosition != null ? b.gearPosition : 0);
   $('head-in').value = b.headLightSw ? '1' : '0';
   $('atmo-in').value = b.atmosphereLightSw ? '1' : '0';
   $('cruise-in').value = b.cruiseControlSw ? '1' : '0';
@@ -556,7 +567,7 @@ function wireControls() {
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
   const sw = (btn, sel, key) => $(btn).addEventListener('click', () => sendBaseChange({ [key]: ($(sel).value === '1') }));
-  $('btn-gear').addEventListener('click', () => sendBaseChange({ gearPosition: parseInt($('gear-in').value, 10) || 1 }));
+  $('btn-gear').addEventListener('click', () => { const g = parseInt($('gear-in').value, 10); if (!isNaN(g)) sendBaseChange({ gearPosition: g }); });
   sw('btn-head', 'head-in', 'headLightSw');
   sw('btn-atmo', 'atmo-in', 'atmosphereLightSw');
   sw('btn-cruise', 'cruise-in', 'cruiseControlSw');
