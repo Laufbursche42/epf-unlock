@@ -1,33 +1,20 @@
 "use strict";
-/*
- * protocol.js - EPF / ePowerFun BLE-Protokoll (com.zydtech.library)
- *
- * Reine Protokoll-Logik ohne DOM. Jede Konstante, jeder Frame-Aufbau und jeder Parser
- * ist aus dem Decompile belegt. Fundstellen verweisen auf PROTOCOL.md
- * und die dort zitierten Java-/Smali-Zeilen (ePowerFun 1.5.5, geteilter Kern
- * com.zydtech.library). Wo eine Bedeutung nur abgeleitet ist, steht UNSICHER dabei.
- *
- * Alle Mehrbyte-Werte des Geräts sind Big-Endian. Die CRC16 wird Low-Byte zuerst
- * angehängt (CRC-16/MODBUS).
- */
 
 const EPF = (function () {
 
-  // ---- GATT-UUIDs (Constant.java:60-71, StringExt.toUUID:362-380) ---------------
   const UUID = {
     DATA_SERVICE: "0000f1f0-0000-1000-8000-00805f9b34fb",
-    DATA_TX:      "0000f1f1-0000-1000-8000-00805f9b34fb", // App -> Scooter (binär)
-    DATA_RX:      "0000f1f2-0000-1000-8000-00805f9b34fb", // Scooter -> App (notify)
+    DATA_TX:      "0000f1f1-0000-1000-8000-00805f9b34fb",
+    DATA_RX:      "0000f1f2-0000-1000-8000-00805f9b34fb",
     CMD_SERVICE:  "0000f2f0-0000-1000-8000-00805f9b34fb",
-    CMD_TX:       "0000f2f1-0000-1000-8000-00805f9b34fb", // App -> Scooter (AT-ASCII)
-    CMD_RX:       "0000f2f2-0000-1000-8000-00805f9b34fb", // Scooter -> App (notify)
+    CMD_TX:       "0000f2f1-0000-1000-8000-00805f9b34fb",
+    CMD_RX:       "0000f2f2-0000-1000-8000-00805f9b34fb",
     DEVINFO:      "0000180a-0000-1000-8000-00805f9b34fb",
     OTA_SERVICE:  "02f00000-0000-0000-0000-00000000fe00",
     OTA_TX:       "02f00000-0000-0000-0000-00000000ff01",
     OTA_RX:       "02f00000-0000-0000-0000-00000000ff02",
   };
 
-  // ---- Opcodes und Frame-Bytes (Constant.java:11-58) ----------------------------
   const OP = {
     READ_PARAMETER: 0x03,
     ESC_INFO:       0x07,
@@ -38,16 +25,13 @@ const EPF = (function () {
     HANDSHAKE:      0x51,
     KEEP:           0x02,
   };
-  const HEAD_ESC = 0x01;     // Standard-Kopf binärer Befehle
-  const HEAD_TRAN = 0xA5;    // Steuer-/Transparent-Frames
+  const HEAD_ESC = 0x01;
+  const HEAD_TRAN = 0xA5;
   const END_TRAN = 0x5A;
-  const HEAD_MONITOR = 0xAB; // Monitor-/Tempolimit-Frames
+  const HEAD_MONITOR = 0xAB;
 
-  // ============================================================================
-  //  Byte-Helfer
-  // ============================================================================
   function u8(buf, i)  { return buf[i] & 0xff; }
-  function s8(buf, i)  { return (buf[i] << 24) >> 24; }                 // signed int8
+  function s8(buf, i)  { return (buf[i] << 24) >> 24; }
   function u16BE(buf, i) { return ((buf[i] & 0xff) << 8) | (buf[i + 1] & 0xff); }
   function s16BE(buf, i) { const v = u16BE(buf, i); return v >= 0x8000 ? v - 0x10000 : v; }
   function u24BE(buf, i) { return ((buf[i] & 0xff) << 16) | ((buf[i + 1] & 0xff) << 8) | (buf[i + 2] & 0xff); }
@@ -67,17 +51,13 @@ const EPF = (function () {
     return s.replace(/[^\x20-\x7e]+$/g, "").trim();
   }
 
-  // ============================================================================
-  //  CRC-16/MODBUS  (CRC16.java:62-65 -> CRC(0x8005, 0xFFFF, refin, refout, 0))
-  //  Standard-Parameter, Ergebnis wird Low-Byte zuerst angehängt.
-  // ============================================================================
   function crc16Modbus(buf, offset, length) {
     let crc = 0xFFFF;
     const end = offset + length;
     for (let i = offset; i < end && i < buf.length; i++) {
       crc ^= (buf[i] & 0xff);
       for (let b = 0; b < 8; b++) {
-        if (crc & 1) crc = (crc >>> 1) ^ 0xA001; // 0xA001 = reflektiertes 0x8005
+        if (crc & 1) crc = (crc >>> 1) ^ 0xA001;
         else crc >>>= 1;
       }
     }
@@ -88,12 +68,6 @@ const EPF = (function () {
     return Uint8Array.from([...bytes, crc & 0xff, (crc >> 8) & 0xff]);
   }
 
-  // ============================================================================
-  //  AUSGEHENDE FRAMES (Daten-Kanal F1F1, sofern nicht anders vermerkt)
-  // ============================================================================
-
-  // Register-Lesen / kurzer Standardbefehl, 8 Byte (BleCore.java:2219-2240)
-  // [head, command, addrHi, addrLo, countHi, countLo, crcLo, crcHi], CRC über 0..5
   function buildRead(command, address, count, head) {
     const b = new Uint8Array(6);
     b[0] = (head === undefined) ? HEAD_ESC : head;
@@ -105,18 +79,14 @@ const EPF = (function () {
     return appendCrc16(b);
   }
 
-  // Bekannte Lese-Abfragen (command-inventory)
   const READ = {
-    escInfo:        () => buildRead(OP.ESC_INFO, 0, 4),        // getEscInfo (BleCore.java:452)
-    batInfoSN:      () => buildRead(OP.BAT_INFO, 0, 7),        // getSN (BleCore.java:1514)
-    parameters:     () => buildRead(OP.READ_PARAMETER, 0, 16), // startGetAdvParams (BleCore.java:1222)
-    serviceMileage: () => buildRead(OP.READ_PARAMETER, 74, 4), // getServiceMileage (BleCore.java:508)
-    limitedSpeed:   () => buildRead(OP.READ_PARAMETER, 0x20, 1), // Register 0x20 gezielt lesen (limitedSpeedValue, PROTOCOL 2.12)
+    escInfo:        () => buildRead(OP.ESC_INFO, 0, 4),
+    batInfoSN:      () => buildRead(OP.BAT_INFO, 0, 7),
+    parameters:     () => buildRead(OP.READ_PARAMETER, 0, 16),
+    serviceMileage: () => buildRead(OP.READ_PARAMETER, 74, 4),
+    limitedSpeed:   () => buildRead(OP.READ_PARAMETER, 0x20, 1),
   };
 
-  // Tempolimit- / Basis-Schalter-Frame, 10 Byte (BleCore.java sendMonitor C01381:881-897)
-  // [0xAB, 0x00, 0x0A, valueByte, limitCruise, limitMode1, limitMode2, limitMode3, crcLo, crcHi]
-  // CRC über Bytes 0..7. valueByte siehe encodeSwitchByte.
   function buildMonitor(valueByte, limitCruise, limitMode1, limitMode2, limitMode3, headMonitor) {
     const b = new Uint8Array(8);
     b[0] = (headMonitor === undefined) ? HEAD_MONITOR : headMonitor;
@@ -130,10 +100,6 @@ const EPF = (function () {
     return appendCrc16(b);
   }
 
-  // Bitfeld-Byte für buildMonitor (setBaseParams reversedArray, BleCore.java:2744/2765)
-  // Reihenfolge nach Umkehr -> MSB..LSB:
-  //   bit7 lock, bit6 metricInch, bit5 boot, bit4 cruise,
-  //   bit3 atmosphere, bit2 headLight, bit1 gearBit1, bit0 gearBit0
   function encodeSwitchByte(s) {
     const gear = s.gearPosition & 0x03;
     let v = 0;
@@ -148,15 +114,11 @@ const EPF = (function () {
     return v & 0xff;
   }
 
-  // Baut aus einem vollständigen Basis-Zustand den Monitor-Frame (wie setBaseParams).
-  // headMonitor: der (ggf. gelernte) Monitor-Kopf des Geräts, Standard 0xAB.
   function buildBaseParamsFrame(state, headMonitor) {
     const val = encodeSwitchByte(state);
     return buildMonitor(val, state.limitCruise, state.limitMode1, state.limitMode2, state.limitMode3, headMonitor);
   }
 
-  // Generischer Register-Schreibbefehl RW_PARAMETER 0x17 (BleCore.java C01361:708-729)
-  // [0x01, 0x17, aHi, aLo, (n/2)Hi, (n/2)Lo, aHi, aLo, (n/2)Hi, (n/2)Lo, nBytes, value..., crcLo, crcHi]
   function buildRwParam(address, value, head) {
     const n = value.length;
     const words = (n / 2) | 0;
@@ -176,60 +138,45 @@ const EPF = (function () {
     return appendCrc16(b);
   }
 
-  // Hoechstgeschwindigkeit ueber Register 0x20 setzen (limitedSpeedValue), zweiter Tempolimit-Hebel
-  // ausserhalb der Gang-Geschwindigkeiten. Belegt: setAdvParams pos 10 schreibt genau ein Register
-  // 0x20 per RW-Frame 0x17, Wert = round(kmh * opv) mit opv=10 als Int16 Big-Endian
-  // (BleCore$setAdvParams$1.smali:774-825, default_parameter.json no:10 address 32 opv 10,
-  // ValueExt.toBytes16 Big-Endian). 25 km/h -> 250 -> 00 FA -> Frame 01 17 00 20 00 01 00 20 00 01 02 00 fa d2 e7.
-  // Head 0x01 (ESC-Kanal) bzw ein Custom-ESC-Kopf. Achtung: die Controller-Firmware kann den Wert
-  // trotzdem klemmen (z. B. auf 22.0 km/h), das ist geraeteabhaengig (PROTOCOL 2.12).
   function buildSetMaxSpeed(kmh, head) {
     const raw = Math.max(0, Math.min(0xffff, Math.round(kmh * 10)));
     const value = Uint8Array.from([(raw >> 8) & 0xff, raw & 0xff]);
     return buildRwParam(0x20, value, head);
   }
 
-  // Steuer-Frame sendCommand2 (BleCore.java:2254-2270): [0xA5, cmd, ~cmd, 0,0,0,0, 0x5A]
   function buildControl(command) {
     return Uint8Array.from([HEAD_TRAN, command & 0xff, (~command) & 0xff, 0, 0, 0, 0, END_TRAN]);
   }
-  const sendTran      = () => buildControl(0x00); // "Keep UF Mode", treibt Poll-Schleife
+  const sendTran      = () => buildControl(0x00);
   const sendPack      = () => buildControl(0x01);
   const sendStopTran  = () => buildControl(0xFF);
 
-  // Heartbeat sendKeep (BleCore.java:2335): [0xA5, 0x02, 0xFD, 0x5A]
   function buildKeep() {
     return Uint8Array.from([HEAD_TRAN, OP.KEEP, 0xFD, END_TRAN]);
   }
 
-  // AT-Kommandos (Kommando-Kanal F2F1, ASCII, keine CRC) - command-inventory
   function at(str) { return new TextEncoder().encode(str); }
   const AT = {
-    pwd:            (p) => at("AT+PWD[" + p + "]"),      // Login (BleCore.java:2538)
-    setPwd:         (p) => at("AT+PWDM[" + p + "]"),     // Passwort setzen (2784)
-    hasPwdQuery:    ()  => at("AT+TYPE?"),               // (2653)
-    setHasPwdOn:    ()  => at("AT+TYPE[B"),              // Passwort an (2871)
-    setHasPwdOff:   ()  => at("AT+TYPE[A"),              // Passwort aus (2874)
-    setName:        (n) => at("AT+NAME[" + n + "]"),     // (2777)
-    deviceQuery:    ()  => at("AT+DEVICE?"),             // (2589)
-    driveTypeQuery: ()  => at("AT+DRIVEMODE?"),          // (2595)
-    setDriveType:   (t) => at("AT+DRIVEMODE[" + t + "]"),// (2845)
-    nfcQuery:       ()  => at("AT+NFC?"),                // (2611)
-    setNfc:         (b) => at("AT+NFC[" + (b ? "1" : "0") + "]"), // (2893)
-    nfcDelete:      ()  => at("AT+DEL[1]"),              // (2887)
-    tlVoiceQuery:   ()  => at("AT+TLVOICEOFF?"),         // (2637)
-    setTlVoice:     (t) => at("AT+TLVOICEOFF[" + t + "]"),// (2907)
-    uid:            ()  => at("AT+UID"),                 // (2647)
-    ludoQuery:      ()  => at("AT+SETLUDO:?"),           // (2605)
-    setLudo:        (b) => at("AT+SETLUDO[" + (b ? "1" : "0") + "]"), // (2881)
-    fingerprintInfo:(id)=> at("AT+FGP" + id),            // (2573)
+    pwd:            (p) => at("AT+PWD[" + p + "]"),
+    setPwd:         (p) => at("AT+PWDM[" + p + "]"),
+    hasPwdQuery:    ()  => at("AT+TYPE?"),
+    setHasPwdOn:    ()  => at("AT+TYPE[B"),
+    setHasPwdOff:   ()  => at("AT+TYPE[A"),
+    setName:        (n) => at("AT+NAME[" + n + "]"),
+    deviceQuery:    ()  => at("AT+DEVICE?"),
+    driveTypeQuery: ()  => at("AT+DRIVEMODE?"),
+    setDriveType:   (t) => at("AT+DRIVEMODE[" + t + "]"),
+    nfcQuery:       ()  => at("AT+NFC?"),
+    setNfc:         (b) => at("AT+NFC[" + (b ? "1" : "0") + "]"),
+    nfcDelete:      ()  => at("AT+DEL[1]"),
+    tlVoiceQuery:   ()  => at("AT+TLVOICEOFF?"),
+    setTlVoice:     (t) => at("AT+TLVOICEOFF[" + t + "]"),
+    uid:            ()  => at("AT+UID"),
+    ludoQuery:      ()  => at("AT+SETLUDO:?"),
+    setLudo:        (b) => at("AT+SETLUDO[" + (b ? "1" : "0") + "]"),
+    fingerprintInfo:(id)=> at("AT+FGP" + id),
   };
 
-  // ============================================================================
-  //  EINGEHENDES PARSING
-  // ============================================================================
-
-  // --- Kommando-Kanal F2F2: ASCII-Antworten (parsingCmdBuf) --------------------
   function parseCmd(bytes) {
     const s = new TextDecoder().decode(bytes).trim();
     let kind = "unknown", value = null;
@@ -251,14 +198,11 @@ const EPF = (function () {
     return { raw: s, kind: kind, value: value };
   }
 
-  // --- Datenkanal F1F2: Dispatch (parsingDataBuf) ------------------------------
-  // Rueckgabe { type, data, hex }. Sammelpuffer (ESC/BAT/Params) liegen im State-Objekt.
   function parseData(buf, state) {
     const hex = toHex(buf);
     const head = buf[0] & 0xff;
     const cmd = buf[1] & 0xff;
 
-    // ESC-Kanal (Kopf 0x01 bzw. customHeadEsc): Reads, Batterie, Parameter, Schreibquittungen.
     if (head === HEAD_ESC || (state && head === state.customHeadEsc)) {
       switch (cmd) {
         case OP.READ_PARAMETER: return { type: "params", data: collectParams(buf, state), hex };
@@ -273,10 +217,6 @@ const EPF = (function () {
       }
     }
 
-    // Monitor-Kanal: Kopf 0xAB (Standard) ODER ein Custom-Head (z. B. 0xAF beim ePF pulse),
-    // erkannt am Sub-Kommando 0x00 (Telemetrie) bzw. 0x01 (Basisparameter). Der Kopf wird aus
-    // dem Frame GELERNT und fuer die eigenen Schreib-Frames (sendMonitor) uebernommen, genau wie
-    // die App per Config.currentHeadMonitor (SubPackageOnce.isInArray, BleCore.java:882).
     if (cmd === 0x00 || cmd === 0x01) {
       if (state) state.customHeadMonitor = head;
       if (cmd === 0x00) return { type: "monitor", data: parseMonitor(buf, state), hex };
@@ -286,33 +226,31 @@ const EPF = (function () {
     return { type: "unknown", hex };
   }
 
-  // Echtzeit-Telemetrie (HEAD 0xAB, buf[1]=0x00), Offsets verifiziert im Smali
   function parseMonitor(buf, state) {
     const rawSpeed = Math.max(u16BE(buf, 6), u16BE(buf, 8));
     const thousand = state && state.thousandUnits;
-    const speed = thousand ? rawSpeed / 10.0 : rawSpeed / 1000.0; // /1000, bei ThousandUnits abweichend (UNSICHER)
+    const speed = thousand ? rawSpeed / 10.0 : rawSpeed / 1000.0;
     const voltage = u16BE(buf, 10) / 10.0;
     const current = s16BE(buf, 12) / 64.0;
     const reg0 = u16BE(buf, 21);
     return {
-      electricity: u8(buf, 5),                 // Akku in Prozent (Offset 5, setElectricity BleCore$parsingDataBuf$1.smali:533-543)
+      electricity: u8(buf, 5),
       gearPosition: u8(buf, 4),
       speedRaw6: u16BE(buf, 6), speedRaw8: u16BE(buf, 8),
-      speed: Math.round(speed * 10) / 10,      // km/h (Skalierung /1000 aus Code)
-      voltage: Math.round(voltage * 10) / 10,  // V
-      current: Math.round(current * 10) / 10,  // A
-      escTemperature: s8(buf, 14),             // Grad C
-      motorTemperature: s8(buf, 15),           // Grad C
-      mileage: Math.round(u16BE(buf, 16) / 10.0 * 10) / 10,        // Trip km
-      totalMileage: Math.round(u24BE(buf, 18) / 10.0 * 10) / 10,   // Gesamt km
-      power: Math.round(voltage * current * 10) / 10,              // W (U*I)
+      speed: Math.round(speed * 10) / 10,
+      voltage: Math.round(voltage * 10) / 10,
+      current: Math.round(current * 10) / 10,
+      escTemperature: s8(buf, 14),
+      motorTemperature: s8(buf, 15),
+      mileage: Math.round(u16BE(buf, 16) / 10.0 * 10) / 10,
+      totalMileage: Math.round(u24BE(buf, 18) / 10.0 * 10) / 10,
+      power: Math.round(voltage * current * 10) / 10,
       registerZero: reg0,
       switches: decodeSwitches(reg0),
-      faultCodeHex: toHex(buf.slice(2, 22)),   // UNSICHER: genauer Bereich nicht eindeutig
+      faultCodeHex: toHex(buf.slice(2, 22)),
     };
   }
 
-  // Schalter-Bits aus registerZero der Monitor-Antwort (verifiziert im Smali)
   function decodeSwitches(reg0) {
     return {
       headLightSw:       getBit(reg0, 2) === 1,
@@ -324,7 +262,6 @@ const EPF = (function () {
     };
   }
 
-  // Basisparameter/Limits (HEAD 0xAB, buf[1]=0x01)
   function parseBaseParams(buf) {
     const u10 = u16BE(buf, 10);
     return {
@@ -338,7 +275,6 @@ const EPF = (function () {
     };
   }
 
-  // ESC-Info fragmentiert (8 Byte ab buf[5], Zieloffset = u16BE@2), fertig bei 0x40
   function collectEscInfo(buf, state) {
     const off = u16BE(buf, 2);
     for (let i = 0; i < 8; i++) state.escInfoBuf[off + i] = buf[5 + i];
@@ -356,7 +292,6 @@ const EPF = (function () {
     return { complete: false, at: off };
   }
 
-  // Batterie-/SN-Info fragmentiert (8 Byte buf[5..12]), fertig bei Offset 8
   function collectBatInfo(buf, state) {
     const off = u16BE(buf, 2);
     for (let i = 0; i < 8; i++) state.batInfoBuf[off + i] = buf[5 + i];
@@ -364,7 +299,6 @@ const EPF = (function () {
     return { complete: false, at: off };
   }
 
-  // Parameter-Lesepuffer: Wort-adressiert, Byte-Offset = Register*2 (BleCore.java:1844)
   function collectParams(buf, state) {
     const reg = u16BE(buf, 2);
     const words = (buf[4] & 0xff) >> 1;
@@ -372,7 +306,6 @@ const EPF = (function () {
     return { at: reg, words: words, full: parseFullAdvParams(state.paramsBuf) };
   }
 
-  // FullAdvParams aus paramsBuf (Offsets/Skalierungen aus BleCore.java:1870-2049)
   function parseFullAdvParams(p) {
     const reg0 = s16BE(p, 0);
     return {

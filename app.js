@@ -1,13 +1,5 @@
 'use strict';
-/*
- * app.js - Oberfläche und Web-Bluetooth-Anbindung für das EPF Tool.
- * UI-Geruest (i18n, Theme, Log, Doc-Viewer) 1:1 nach der Laufbursche-Vorlage (sf-unlock).
- * Protokoll-Logik liegt in protocol.js (global EPF). Belegte Fakten: PROTOCOL.md.
- * Das Log bleibt technisch und englisch (ASCII), damit ein Mitschnitt in einer Sprache bleibt.
- */
 
-// Build-Anzeige aus der Asset-Version des eigenen Script-Tags (index.html app.js?v=N),
-// damit die Footer-Version bei jedem Deploy automatisch mitzieht, statt fest verdrahtet zu sein.
 const BUILD = (function () {
   try {
     const s = document.currentScript || Array.prototype.slice.call(document.scripts).find(function (x) { return /app\.js/.test(x.src); });
@@ -19,7 +11,6 @@ const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang';
 
 const $ = (id) => document.getElementById(id);
 
-// --------------------------- Zustand ---------------------------
 const state = {
   device: null, server: null,
   dataTx: null, dataRx: null, cmdTx: null, cmdRx: null,
@@ -28,9 +19,7 @@ const state = {
   escInfoBuf: new Uint8Array(96),
   batInfoBuf: new Uint8Array(32),
   paramsBuf: new Uint8Array(400),
-  // Getrennte Ladezustaende: geschrieben wird erst, wenn BEIDE Haelften des Geraetezustands
-  // vorliegen - Schalter plus Gang aus dem Monitor-Frame (af 00) UND die Limits aus dem
-  // Basisparameter-Frame (af 01). Sonst wuerde das value-Byte mit Default-Schaltern gebaut.
+
   monitorSeen: false, baseParamsSeen: false, uiPrefilled: false,
   base: {
     gearPosition: 0,
@@ -41,7 +30,6 @@ const state = {
   monitor: null, escInfo: null, batInfo: null, fullAdv: null, displayVersion: null,
 };
 
-// --------------------------- Log ---------------------------
 const logLines = [];
 function ts() {
   const d = new Date(), p = (n, w) => String(n).padStart(w || 2, '0');
@@ -83,7 +71,6 @@ function copyLogFallback(text) {
   } catch (e) { return false; }
 }
 
-// --------------------------- i18n ---------------------------
 let lang = 'de';
 function table() { return (window.I18N && window.I18N[lang]) || {}; }
 function t(key) { const v = table()[key]; return (typeof v === 'string') ? v : ''; }
@@ -91,7 +78,7 @@ function applyLang() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-t]').forEach(n => {
     const v = t(n.getAttribute('data-t'));
-    if (/[<&]/.test(v)) n.innerHTML = v; else n.textContent = v;   // scan-ok: own i18n strings, contain our own anchor markup
+    if (/[<&]/.test(v)) n.innerHTML = v; else n.textContent = v;   // scan-ok: trusted
   });
   { const el = $('link-guide'); if (el) el.href = docFile('GUIDE'); }
   { const el = $('link-readme'); if (el) el.href = 'README.md'; }
@@ -104,14 +91,13 @@ function applyLang() {
   { const el = $('build-ver'); if (el) el.textContent = t('buildLabel') + ' ' + BUILD; }
   document.querySelectorAll('#langs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   { const el = $('status'); setStatus(el ? el.dataset.state : 'disconnected'); }
-  updateLockState(); // Knopf-Text plus Zustandszeile haben kein data-t und werden hier neu gesetzt
+  updateLockState();
   try { localStorage.setItem(LS_LANG, lang); } catch (e) {}
 }
 function initLangSwitch() {
   document.querySelectorAll('#langs button').forEach(b => b.addEventListener('click', () => { lang = b.dataset.lang; applyLang(); }));
 }
 
-// --------------------------- Theme ---------------------------
 function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   const b = $('btn-theme');
@@ -125,7 +111,6 @@ function initTheme() {
   if (b) b.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'light'));
 }
 
-// --------------------------- Doc-Viewer (Markdown) ---------------------------
 const DOC_TITLES = {
   'GUIDE.de.md': 'footGuide', 'GUIDE.en.md': 'footGuide',
   'PRIVACY.de.md': 'footPrivacy', 'PRIVACY.md': 'footPrivacy',
@@ -190,7 +175,7 @@ function openDocFile(file, anchor, titleKey) {
   $('doc-title').textContent = (t(titleKey || DOC_TITLES[file] || '') || file) + mark;
   if (typeof dlg.showModal === 'function') dlg.showModal();
   const show = html => {
-    body.innerHTML = html;   // scan-ok: markdown of our own docs, escaped in mdToHtml
+    body.innerHTML = html;   // scan-ok: trusted
     const h1 = body.querySelector('h1');
     if (h1) { $('doc-title').textContent = h1.textContent.trim() + mark; h1.remove(); }
     body.scrollTop = 0;
@@ -210,13 +195,13 @@ function openDocFile(file, anchor, titleKey) {
 const HELP = {
   disclaimer: ['footDisclaimer', 'disclaimerText'],
   adv: ['advTitle', 'helpAdv'],
-  // Tempo sperren / entsperren
+
   hLs: ['lsTitle', 'hLs'], hMaxRow: ['lblMax', 'hMaxRow'],
   hEco: ['lblEco', 'hEco'], hComfort: ['lblComfort', 'hComfort'], hSport: ['lblSport', 'hSport'], hCruise: ['lblCruise', 'hCruise'],
-  // Einstellungen
+
   hGear: ['lblGear', 'hGear'], hHead: ['lblHead', 'hHead'], hAtmo: ['lblAtmo', 'hAtmo'], hCruiseSw: ['lblCruiseSw', 'hCruiseSw'],
   hBoot: ['lblBoot', 'hBoot'], hUnit: ['lblUnit', 'hUnit'], hLock: ['lblLock', 'hLock'],
-  // Weitere Einstellungen
+
   hName: ['lblName', 'hName'], hNewPwd: ['lblNewPwd', 'hNewPwd'], hPwdProt: ['lblPwdProt', 'hPwdProt'],
   hNfc: ['lblNfc', 'hNfc'], hBlinker: ['lblBlinker', 'hBlinker'], hDrive: ['lblDrive', 'hDrive'],
 };
@@ -244,7 +229,6 @@ function wireDocViewer() {
   ['help-x', 'help-close'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => { const d = $('help'); if (d) d.close(); }); });
 }
 
-// --------------------------- Status / Controls ---------------------------
 function statusLabel(s) {
   const map = { disconnected: 'stDisconnected', connecting: 'stConnecting', linking: 'stLinking', connected: 'stConnected', 'no-service': 'stNoService', 'no-char': 'stNoChar' };
   return t(map[s] || 'stDisconnected') || s;
@@ -260,7 +244,6 @@ const CTRL_IDS = ['btn-lock-toggle', 'btn-write-gears', 'max-in', 'lm1-in', 'lm2
   'btn-qdevice', 'btn-quid', 'btn-qtype'];
 function setControlsEnabled(on) { CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; }); }
 
-// --------------------------- Verbindung ---------------------------
 async function connect() {
   if (!navigator.bluetooth) { log('web bluetooth unavailable, use chrome/edge over https or localhost', 'log-err'); return; }
   const U = EPF.UUID;
@@ -298,18 +281,16 @@ async function initSequence() {
   await writeCmd(EPF.AT.hasPwdQuery(), 'AT+TYPE?');
   const pwd = $('pwd-in').value;
   if (pwd) { await sleep(150); await writeCmd(EPF.AT.pwd(pwd), 'AT+PWD[***]'); }
-  // Exakt wie die EPF-App auf Verbindung (BleCore$listener$1$onConnectStatusChanged$1):
-  // erst 5x sendStopTran (raus aus dem Transparent-Modus), dann 3x sendKeep (Monitor-Modus starten).
-  // Erst in diesem Modus sendet der Scooter 0xAB-Telemetrie und nimmt Schreibbefehle an.
+
   for (let i = 0; i < 5; i++) { await writeData(EPF.sendStopTran(), 'stop-tran'); await sleep(50); }
   for (let i = 0; i < 3; i++) { await writeData(EPF.buildKeep(), 'keep'); await sleep(50); }
-  // Reads exakt wie die EPF-App: je ein sendTran-Puls, 50 ms warten, dann der eigentliche Read.
+
   await readWithTran(EPF.READ.escInfo(), 'read esc-info');
   await readWithTran(EPF.READ.batInfoSN(), 'read sn');
   await readWithTran(EPF.READ.parameters(), 'read parameters');
   await readWithTran(EPF.READ.serviceMileage(), 'read service-km');
-  await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed'); // Register 0x20 gezielt lesen (limitedSpeedValue)
-  // Aktuellen Zustand der weiteren Einstellungen vom Scooter abfragen (statt Default anzeigen)
+  await readWithTran(EPF.READ.limitedSpeed(), 'read maxspeed');
+
   if (state.device && state.device.name) $('name-in').value = state.device.name;
   await sleep(120); await writeCmd(EPF.AT.nfcQuery(), 'AT+NFC?');
   await sleep(150); await writeCmd(EPF.AT.tlVoiceQuery(), 'AT+TLVOICEOFF?');
@@ -317,16 +298,12 @@ async function initSequence() {
   await backToMonitor();
   startPoll();
 }
-// Sauber zurueck in den Monitor-Modus, exakt wie stopGetAdvParams der EPF-App: erst raus aus
-// dem Transparent-/UF-Modus (5x sendStopTran), dann Monitor-Streaming wieder an (3x sendKeep).
-// Sonst haelt der letzte sendTran-Puls eines Reads den Scooter im UF-Modus und das Gas bleibt
-// gesperrt. Nach dem Burst streamt der Scooter die Telemetrie wieder von selbst.
+
 async function backToMonitor() {
   for (let i = 0; i < 5; i++) { await writeData(EPF.sendStopTran(), 'stop-tran'); await sleep(40); }
   for (let i = 0; i < 3; i++) { await writeData(EPF.buildKeep(), 'keep'); await sleep(40); }
 }
-// Ein Lese-Befehl wie in der EPF-App: einmal sendTran als kurzer Puls, warten, dann der Read.
-// sendTran haelt den Transparent-Modus nur waehrend des Reads, danach uebernimmt wieder der Keep-Heartbeat.
+
 async function readWithTran(frame, label) {
   await writeData(EPF.sendTran(), 'tran');
   await sleep(60);
@@ -341,13 +318,7 @@ function resetReadFields() {
 async function disconnect() { stopPoll(); if (state.device && state.device.gatt.connected) state.device.gatt.disconnect(); }
 function startPoll() {
   stopPoll();
-  // Ruhezustand exakt wie die EPF-App (EventMode GET_MONITORING, BleCore.smali): Nach dem
-  // Connect-Burst (5x sendStopTran, 3x sendKeep) streamt der Scooter die Telemetrie
-  // (0xAB/0xAF, af 00 plus af 01) von selbst. Die App haelt den Monitor-Modus nur mit
-  // periodischem sendKeep wach (im Original je 5. Frame). KEIN sendTran und KEIN 01 03-Read
-  // im Ruhezustand - ein dauerhaftes sendTran wuerde den Scooter im UF-/Transparent-Modus
-  // festhalten und das Gas sperren (genau der v9-Fehler). Der Register-Read passiert nur
-  // einmalig beim Verbinden bzw auf Knopfdruck ueber readWithTran.
+
   state.pollTimer = setInterval(() => {
     if (state.connected) writeData(EPF.buildKeep(), 'keep').catch(() => {});
   }, 1500);
@@ -356,7 +327,6 @@ function startPoll() {
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// --------------------------- Senden ---------------------------
 async function writeData(bytes, label) {
   if (!state.dataTx) { log('not connected', 'log-err'); return; }
   try {
@@ -374,28 +344,23 @@ async function writeCmd(bytes, label) {
   } catch (e) { log('cmd write failed: ' + e.message, 'log-err'); }
 }
 function baseReady() { return state.monitorSeen && state.baseParamsSeen; }
-// Exakt wie setBaseParams der Hersteller-App (BleCore.java:2704-2744): den zuletzt vom Geraet
-// gelesenen Zustand KLONEN, nur das eine geaenderte Feld ueberschreiben und daraus das value-Byte
-// plus die Limits neu kodieren. state.base selbst bleibt unberuehrt - es ist der Geraete-Spiegel
-// und wird nur vom Empfangs-Parser aktualisiert. So kann kein UI-Feld die Schalter-Bits verbiegen.
+
 async function sendBaseChange(changes) {
   if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen (Telemetrie plus Basiswerte), damit keine Default-Schalter geschrieben werden', 'log-err'); return; }
   const clone = Object.assign({}, state.base, changes);
-  // Mit dem vom Geraet gelernten Monitor-Kopf schreiben (0xAB Standard, 0xAF bei Custom-Head-Geraeten).
+
   await writeData(EPF.buildBaseParamsFrame(clone, state.customHeadMonitor), 'setBaseParams');
 }
 
-// --------------------------- Empfang ---------------------------
 function onDataNotify(ev) { const buf = new Uint8Array(ev.target.value.buffer); const r = EPF.parseData(buf, state); log('RX ' + r.type + ' ' + r.hex, 'log-rx'); applyData(r); }
 function onCmdNotify(ev) { const buf = new Uint8Array(ev.target.value.buffer); const r = EPF.parseCmd(buf); log('RX cmd ' + r.kind + ': ' + r.raw, 'log-rx'); applyCmd(r); }
 function applyData(r) {
   if (!r || !r.type) return;
   switch (r.type) {
     case 'monitor':
-      // state.base ist der reine Geraete-Spiegel und wird NUR hier (aus Geraete-Frames)
-      // geschrieben, nie durch die UI. Schalter plus Gang stammen aus diesem Monitor-Frame.
+
       state.monitor = r.data; Object.assign(state.base, r.data.switches);
-      // gearPosition ist 0-basiert (0=Eco, 1=Comfort, 2=Sport), 0 darf nicht als "leer" gelten.
+
       if (r.data.gearPosition != null) state.base.gearPosition = r.data.gearPosition;
       state.monitorSeen = true; renderTiles(); maybePrefillInputs(); break;
     case 'baseParams':
@@ -428,9 +393,8 @@ function applyCmd(r) {
   }
 }
 
-// --------------------------- Rendering ---------------------------
 function setTile(id, val) { const el = $(id); if (el) el.textContent = (val == null || val === '' ? '-' : val); }
-// Fahrstufe ist 0-basiert (HomeFragment.java:468-469: 0=Eco, 1=Comfort, 2=Sport).
+
 const GEAR_NAMES = { 0: 'Eco', 1: 'Comfort', 2: 'Sport' };
 function renderTiles() {
   const m = state.monitor;
@@ -479,9 +443,7 @@ function renderInfo() {
   if (state.batInfo) setInfoRow('infoSn', state.batInfo.info);
   if (state.displayVersion) setInfoRow('infoVer', state.displayVersion);
 }
-// Eingabefelder (Fahrstufen, Gang, Schalter) einmalig nach dem Verbinden aus dem Geraet vorbelegen.
-// Danach gehoeren sie dem Nutzer und werden vom Live-Stream NICHT mehr ueberschrieben, sonst wuerde
-// jede Eingabe sofort zurueckspringen. Die Live-Kacheln oben zeigen den echten Zustand laufend.
+
 function maybePrefillInputs() {
   if (state.uiPrefilled || !baseReady()) return;
   renderTuningInputs();
@@ -502,21 +464,19 @@ function syncSettingSelects() {
   $('unit-in').value = b.metricInchSw ? '1' : '0';
   $('lock-in').value = b.lockSw ? '1' : '0';
 }
-// Eingabefeld der Hoechstgeschwindigkeit (Register 0x20) mit dem am Geraet gelesenen Wert
-// vorbelegen, nur wenn leer, damit eine laufende Nutzereingabe nicht ueberschrieben wird.
+
 function syncMaxInput() {
   const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
   const el = $('max-in');
   if (el && typeof v === 'number' && v > 0 && !el.value) el.value = v;
   updateLockState();
 }
-// Gesperrt oder entsperrt wird am gelesenen Register-0x20-Wert erkannt: ueber 22 km/h = entsperrt.
+
 function isUnlocked() {
   const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
   return typeof v === 'number' && v > 22;
 }
-// Ein Knopf fuer beide Richtungen: Beschriftung und Zustandszeile richten sich nach dem zuletzt
-// gelesenen Register-0x20-Wert.
+
 function updateLockState() {
   const btn = $('btn-lock-toggle'); if (!btn) return;
   const v = state.fullAdv && state.fullAdv.limitedSpeedValue;
@@ -531,11 +491,8 @@ function updateLockState() {
   if (st) st.textContent = (unlocked ? t('lsStateUnlocked') : t('lsStateLocked')) + ' (' + v + ' km/h)';
 }
 
-// --------------------------- Bedienelemente ---------------------------
 function clampByte(v) { let n = parseInt(v, 10); if (isNaN(n)) n = 0; return Math.max(0, Math.min(255, n)); }
-// Nur die vier Fahrstufen-Limits schreiben, jede einzeln aus ihrem Feld (Eco, Comfort, Sport,
-// Tempomat). Register 0x20 bleibt unangetastet. Der Monitor-Frame enthaelt immer alle vier, der Klon
-// uebernimmt die nicht editierten aus dem Geraetezustand. So bleibt eine bewusste Staffelung erhalten.
+
 async function writeGears() {
   if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
   await sendBaseChange({
@@ -543,12 +500,10 @@ async function writeGears() {
     limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
   });
 }
-// Werksdrossel Register 0x20 setzen und den HOECHSTEN Gang (Sport, limitMode3) mitziehen, damit er
-// nicht unter der Drossel abriegelt. Eco/Comfort/Tempomat bleiben unveraendert - die staffelt der
-// Nutzer selbst ueber "Fahrstufen schreiben". Danach zurueck in den Monitor-Modus und 0x20 lesen.
+
 async function applyDrossel(maxKmh) {
   if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
-  await sendBaseChange({ limitMode3: maxKmh }); // Sport = hoechster Gang
+  await sendBaseChange({ limitMode3: maxKmh });
   await sleep(160);
   await writeData(EPF.sendTran(), 'tran'); await sleep(40);
   await writeData(EPF.buildSetMaxSpeed(maxKmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
@@ -558,21 +513,18 @@ async function applyDrossel(maxKmh) {
 function wireControls() {
   $('btn-conn').addEventListener('click', () => { if ($('btn-conn').dataset.act === 'disconnect') disconnect(); else connect(); });
 
-  // Fahrstufen einzeln schreiben (Eco/Comfort/Sport/Tempomat, jede aus ihrem Feld).
   $('btn-write-gears').addEventListener('click', writeGears);
-  // Werksdrossel sperren / entsperren: ein Knopf, der je nach Zustand nur Register 0x20 plus den
-  // aktiven Gang anhebt bzw wieder auf 22 setzt. Die uebrigen Fahrstufen bleiben unangetastet.
+
   $('btn-lock-toggle').addEventListener('click', async () => {
     if (isUnlocked()) {
-      await applyDrossel(22); // Sperren: Drossel plus aktiver Gang zurueck auf 22 (eKFV: 20 plus 10 Prozent)
+      await applyDrossel(22);
     } else {
       const mx = parseInt($('max-in').value, 10);
       if (isNaN(mx) || mx < 1 || mx > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
-      await applyDrossel(mx); // Entsperren: Drossel plus aktiver Gang auf den Wunschwert
+      await applyDrossel(mx);
     }
   });
 
-  // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
   const sw = (btn, sel, key) => $(btn).addEventListener('click', () => sendBaseChange({ [key]: ($(sel).value === '1') }));
   $('btn-gear').addEventListener('click', () => { const g = parseInt($('gear-in').value, 10); if (!isNaN(g)) sendBaseChange({ gearPosition: g }); });
   sw('btn-head', 'head-in', 'headLightSw');
@@ -582,7 +534,6 @@ function wireControls() {
   sw('btn-unit', 'unit-in', 'metricInchSw');
   sw('btn-lock', 'lock-in', 'lockSw');
 
-  // Weitere Einstellungen (AT-Kommandos)
   $('btn-name').addEventListener('click', () => { const n = $('name-in').value.trim(); if (n) writeCmd(EPF.AT.setName(n), 'AT+NAME'); });
   $('btn-setpwd').addEventListener('click', () => { const p = $('newpwd-in').value; if (p) writeCmd(EPF.AT.setPwd(p), 'AT+PWDM'); });
   $('btn-pwdprot').addEventListener('click', () => writeCmd($('pwdprot-in').value === '1' ? EPF.AT.setHasPwdOn() : EPF.AT.setHasPwdOff(), 'AT+TYPE'));
@@ -592,12 +543,10 @@ function wireControls() {
   $('btn-delnfc').addEventListener('click', () => writeCmd(EPF.AT.nfcDelete(), 'AT+DEL'));
   $('btn-resettrip').addEventListener('click', () => log('note: trip reset is bound to setBaseParams(pos 2) in the app, not proven as its own frame; not sent', 'log-err'));
 
-  // Info-Abfragen
   $('btn-qdevice').addEventListener('click', () => writeCmd(EPF.AT.deviceQuery(), 'AT+DEVICE?'));
   $('btn-quid').addEventListener('click', () => writeCmd(EPF.AT.uid(), 'AT+UID'));
   $('btn-qtype').addEventListener('click', () => writeCmd(EPF.AT.hasPwdQuery(), 'AT+TYPE?'));
 
-  // Log
   $('btn-copy-log').addEventListener('click', copyLog);
   $('btn-clear-log').addEventListener('click', clearLog);
   $('btn-diag').addEventListener('click', diagnostic);
@@ -615,7 +564,6 @@ async function diagnostic() {
   } catch (e) { log('diag failed: ' + e.message, 'log-err'); }
 }
 
-// --------------------------- Init ---------------------------
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
   try { const l = localStorage.getItem(LS_LANG); if (l === 'de' || l === 'en') lang = l; } catch (e) {}
