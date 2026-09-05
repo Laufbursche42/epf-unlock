@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
 <div class="wrap">
@@ -72,12 +72,16 @@
     <p class="warn" data-t="lsWarn"></p>
     <p class="hint" id="ls-state"></p>
     <div class="set-row"><div class="lblrow"><label data-t="lblMax"></label><button type="button" class="help-btn" data-help="hMaxRow" aria-label="Info">?</button></div><input id="max-in" type="number" min="6" max="99" step="1" disabled></div>
+    <div class="btns">
+      <button class="primary span2" id="btn-lock-toggle" disabled></button>
+    </div>
+    <p class="hint" data-t="lsGearsHint"></p>
     <div class="set-row"><div class="lblrow"><label data-t="lblSport"></label><button type="button" class="help-btn" data-help="hSport" aria-label="Info">?</button></div><input id="lm3-in" type="number" min="0" max="255" step="1" disabled></div>
     <div class="set-row"><div class="lblrow"><label data-t="lblComfort"></label><button type="button" class="help-btn" data-help="hComfort" aria-label="Info">?</button></div><input id="lm2-in" type="number" min="0" max="255" step="1" disabled></div>
     <div class="set-row"><div class="lblrow"><label data-t="lblEco"></label><button type="button" class="help-btn" data-help="hEco" aria-label="Info">?</button></div><input id="lm1-in" type="number" min="0" max="255" step="1" disabled></div>
     <div class="set-row"><div class="lblrow"><label data-t="lblCruise"></label><button type="button" class="help-btn" data-help="hCruise" aria-label="Info">?</button></div><input id="lc-in" type="number" min="0" max="255" step="1" disabled></div>
     <div class="btns">
-      <button class="primary span2" id="btn-lock-toggle" disabled></button>
+      <button class="primary span2" id="btn-write-gears" data-t="btnWriteGears" disabled></button>
     </div>
     <p class="hint" data-t="lsHint"></p>
   </div>
@@ -200,8 +204,8 @@
   </div>
 </dialog>
 
-<script src="i18n.js?v=15"></script>
-<script src="protocol.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="i18n.js?v=16"></script>
+<script src="protocol.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

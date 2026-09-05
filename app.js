@@ -254,7 +254,7 @@ function setStatus(s) {
   const cb = $('btn-conn');
   if (cb) { const on = (s === 'connecting' || s === 'linking' || s === 'connected'); cb.textContent = on ? t('btnDisconnect') : t('btnConnect'); cb.dataset.act = on ? 'disconnect' : 'connect'; }
 }
-const CTRL_IDS = ['btn-lock-toggle', 'max-in', 'lm1-in', 'lm2-in', 'lm3-in', 'lc-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
+const CTRL_IDS = ['btn-lock-toggle', 'btn-write-gears', 'max-in', 'lm1-in', 'lm2-in', 'lm3-in', 'lc-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
   'btn-boot', 'btn-unit', 'btn-lock', 'name-in', 'btn-name', 'newpwd-in', 'btn-setpwd', 'btn-pwdprot',
   'btn-nfc', 'btn-blinker', 'drive-in', 'btn-drive', 'btn-delnfc', 'btn-resettrip',
   'btn-qdevice', 'btn-quid', 'btn-qtype'];
@@ -533,12 +533,27 @@ function updateLockState() {
 
 // --------------------------- Bedienelemente ---------------------------
 function clampByte(v) { let n = parseInt(v, 10); if (isNaN(n)) n = 0; return Math.max(0, Math.min(255, n)); }
-// Alle relevanten Tempo-Hebel auf einmal setzen: erst die Fahrstufen per Monitor-Frame (Klon, nur
-// die Limit-Felder), dann die Werksdrossel Register 0x20 per RW-Frame 0x17, danach zurueck in den
-// Monitor-Modus und Register 0x20 erneut lesen (aktualisiert Zustandszeile plus Adv-Tabelle).
-async function applyLockSpeed(maxKmh, eco, comfort, sport, cruise) {
+// Nur die vier Fahrstufen-Limits schreiben, jede einzeln aus ihrem Feld (Eco, Comfort, Sport,
+// Tempomat). Register 0x20 bleibt unangetastet. Der Monitor-Frame enthaelt immer alle vier, der Klon
+// uebernimmt die nicht editierten aus dem Geraetezustand. So bleibt eine bewusste Staffelung erhalten.
+async function writeGears() {
   if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
-  await sendBaseChange({ limitMode1: eco, limitMode2: comfort, limitMode3: sport, limitCruise: cruise });
+  await sendBaseChange({
+    limitMode1: clampByte($('lm1-in').value), limitMode2: clampByte($('lm2-in').value),
+    limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
+  });
+}
+// Der gerade aktive Gang (0=Eco -> limitMode1, 1=Comfort -> limitMode2, 2=Sport -> limitMode3).
+function activeGearKey() {
+  const g = state.base.gearPosition;
+  return g === 2 ? 'limitMode3' : g === 1 ? 'limitMode2' : 'limitMode1';
+}
+// Werksdrossel Register 0x20 setzen und den GERADE AKTIVEN Gang mitziehen, damit er nicht unter der
+// Drossel abriegelt. Die anderen Fahrstufen bleiben unveraendert - die staffelt der Nutzer selbst
+// ueber "Fahrstufen schreiben". Danach zurueck in den Monitor-Modus und Register 0x20 erneut lesen.
+async function applyDrossel(maxKmh) {
+  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
+  await sendBaseChange({ [activeGearKey()]: maxKmh });
   await sleep(160);
   await writeData(EPF.sendTran(), 'tran'); await sleep(40);
   await writeData(EPF.buildSetMaxSpeed(maxKmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
@@ -548,21 +563,18 @@ async function applyLockSpeed(maxKmh, eco, comfort, sport, cruise) {
 function wireControls() {
   $('btn-conn').addEventListener('click', () => { if ($('btn-conn').dataset.act === 'disconnect') disconnect(); else connect(); });
 
-  // Tempo sperren / entsperren: ein Knopf, der je nach aktuellem Zustand alle Hebel auf einmal setzt.
+  // Fahrstufen einzeln schreiben (Eco/Comfort/Sport/Tempomat, jede aus ihrem Feld).
+  $('btn-write-gears').addEventListener('click', writeGears);
+  // Werksdrossel sperren / entsperren: ein Knopf, der je nach Zustand nur Register 0x20 plus den
+  // aktiven Gang anhebt bzw wieder auf 22 setzt. Die uebrigen Fahrstufen bleiben unangetastet.
   $('btn-lock-toggle').addEventListener('click', async () => {
     if (isUnlocked()) {
-      await applyLockSpeed(22, 22, 22, 22, 22); // Sperren: alles zurueck auf 22 km/h (eKFV: 20 plus 10 Prozent)
+      await applyDrossel(22); // Sperren: Drossel plus aktiver Gang zurueck auf 22 (eKFV: 20 plus 10 Prozent)
     } else {
-      const mx = parseInt($('max-in').value, 10); // Entsperren: die eingetragenen Werte schreiben
+      const mx = parseInt($('max-in').value, 10);
       if (isNaN(mx) || mx < 1 || mx > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
-      await applyLockSpeed(mx, clampByte($('lm1-in').value), clampByte($('lm2-in').value), clampByte($('lm3-in').value), clampByte($('lc-in').value));
+      await applyDrossel(mx); // Entsperren: Drossel plus aktiver Gang auf den Wunschwert
     }
-  });
-  // Tippt der Nutzer eine Hoechstgeschwindigkeit, ziehen zu niedrige Fahrstufen automatisch nach,
-  // sonst wuerde die niedrigere Stufe abriegeln. Hoehere Stufen bleiben, Feinjustierung danach moeglich.
-  $('max-in').addEventListener('input', () => {
-    const mx = parseInt($('max-in').value, 10); if (isNaN(mx)) return;
-    ['lm1-in', 'lm2-in', 'lm3-in', 'lc-in'].forEach(id => { const el = $(id); if (el && (parseInt(el.value, 10) || 0) < mx) el.value = mx; });
   });
 
   // Schalter plus Gang (jeweils Senden-Knopf -> Basiszustand setzen und Monitor-Frame senden)
