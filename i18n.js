@@ -54,7 +54,7 @@ window.I18N = {
     lsStateLocked: "Zustand: gesperrt",
     lsStateUnlocked: "Zustand: entsperrt",
     lsGearsHint: "Darunter jede Fahrstufe einzeln. Werte eintragen und mit Fahrstufen schreiben senden. Hinweis: Manche Controller übernehmen nur die Stufe, in der der Scooter gerade steht - dann vorher am Scooter in die gewünschte Stufe schalten.",
-    lsHint: "Oben die Werksdrossel (Register 0x20): Entsperren hebt sie plus den gerade aktiven Gang auf deinen Wert an, Sperren setzt beide zurück auf 22 km/h. Ob der Controller über 22 km/h wirklich fährt oder intern abriegelt, zeigt erst der Test am Gerät.",
+    lsHint: "Oben die Werksdrossel (Register 0x20): Entsperren hebt sie plus den Sport-Modus (höchster Gang) auf deinen Wert an, Sperren setzt beide zurück auf 22 km/h. Ob der Controller über 22 km/h wirklich fährt oder intern abriegelt, zeigt erst der Test am Gerät.",
     hMaxRow: "Die Werksdrossel, ein globaler Wert im Controller (Register 0x20). Dieser Hebel entscheidet über die absolute Höchstgeschwindigkeit. Kann von der Firmware auf 22 km/h begrenzt werden.",
     hLs: "Zwei Wege: oben die Werksdrossel mit einem Sperren-/Entsperren-Knopf, darunter die drei Fahrstufen einzeln mit eigenem Schreiben-Knopf.",
 
@@ -206,7 +206,7 @@ window.I18N = {
     lsStateLocked: "State: locked",
     lsStateUnlocked: "State: unlocked",
     lsGearsHint: "Below it each ride stage individually. Enter values and send them with Write ride stages. Note: some controllers only take the stage the scooter is currently in - switch into the wanted stage on the scooter first.",
-    lsHint: "Top is the factory limiter (register 0x20): Unlock raises it plus the currently active gear to your value, Lock sets both back to 22 km/h. Whether the controller actually rides above 22 km/h or clamps internally is what the test on the vehicle shows.",
+    lsHint: "Top is the factory limiter (register 0x20): Unlock raises it plus the Sport stage (highest gear) to your value, Lock sets both back to 22 km/h. Whether the controller actually rides above 22 km/h or clamps internally is what the test on the vehicle shows.",
     hMaxRow: "The factory limiter, a single global value in the controller (register 0x20). This lever decides the absolute top speed. May be capped to 22 km/h by the firmware.",
     hLs: "Two ways: on top the factory limiter with a lock/unlock button, below it the three ride stages individually with their own write button.",
 

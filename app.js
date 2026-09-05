@@ -543,17 +543,12 @@ async function writeGears() {
     limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
   });
 }
-// Der gerade aktive Gang (0=Eco -> limitMode1, 1=Comfort -> limitMode2, 2=Sport -> limitMode3).
-function activeGearKey() {
-  const g = state.base.gearPosition;
-  return g === 2 ? 'limitMode3' : g === 1 ? 'limitMode2' : 'limitMode1';
-}
-// Werksdrossel Register 0x20 setzen und den GERADE AKTIVEN Gang mitziehen, damit er nicht unter der
-// Drossel abriegelt. Die anderen Fahrstufen bleiben unveraendert - die staffelt der Nutzer selbst
-// ueber "Fahrstufen schreiben". Danach zurueck in den Monitor-Modus und Register 0x20 erneut lesen.
+// Werksdrossel Register 0x20 setzen und den HOECHSTEN Gang (Sport, limitMode3) mitziehen, damit er
+// nicht unter der Drossel abriegelt. Eco/Comfort/Tempomat bleiben unveraendert - die staffelt der
+// Nutzer selbst ueber "Fahrstufen schreiben". Danach zurueck in den Monitor-Modus und 0x20 lesen.
 async function applyDrossel(maxKmh) {
   if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
-  await sendBaseChange({ [activeGearKey()]: maxKmh });
+  await sendBaseChange({ limitMode3: maxKmh }); // Sport = hoechster Gang
   await sleep(160);
   await writeData(EPF.sendTran(), 'tran'); await sleep(40);
   await writeData(EPF.buildSetMaxSpeed(maxKmh, state.customHeadEsc), 'setMaxSpeed'); await sleep(220);
