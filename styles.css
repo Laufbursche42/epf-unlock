@@ -177,3 +177,6 @@ dialog::backdrop { background: var(--backdrop); }
 .set-row .lblrow { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
 .set-row .lblrow label { grid-column: auto; }
 .set-row .lblrow .help-btn { width: 18px; height: 18px; min-width: 18px; font-size: 11px; }
+
+.speed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.speed-grid .set-row { grid-template-columns: 1fr; }
