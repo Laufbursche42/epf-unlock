@@ -198,7 +198,29 @@ const EPF = (function () {
     return { raw: s, kind: kind, value: value };
   }
 
+  const ESC_CMDS = [OP.READ_PARAMETER, OP.ESC_INFO, OP.BAT_INFO, OP.WRITER_PARAMETER, OP.RW_PARAMETER, 0x90, 0x97, 0x81];
+  function isEscStart(h, c, state) {
+    return (h === HEAD_ESC || (state && h === state.customHeadEsc)) && ESC_CMDS.indexOf(c) >= 0;
+  }
+  function isMonStart(h, c, state) {
+    return (c === 0x00 || c === 0x01) && (h === HEAD_MONITOR || h === 0xAF || (state && h === state.customHeadMonitor));
+  }
+
   function parseData(buf, state) {
+    const h0 = buf[0] & 0xff, c0 = buf[1] & 0xff;
+    if (!isEscStart(h0, c0, state) && !isMonStart(h0, c0, state)) {
+      for (let i = 1; i + 6 <= buf.length; i++) {
+        if (isEscStart(buf[i] & 0xff, buf[i + 1] & 0xff, state) || isMonStart(buf[i] & 0xff, buf[i + 1] & 0xff, state)) {
+          const r = parseFrameInner(buf.slice(i), state);
+          r.hex = toHex(buf);
+          return r;
+        }
+      }
+    }
+    return parseFrameInner(buf, state);
+  }
+
+  function parseFrameInner(buf, state) {
     const hex = toHex(buf);
     const head = buf[0] & 0xff;
     const cmd = buf[1] & 0xff;
