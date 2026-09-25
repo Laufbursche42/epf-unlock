@@ -1,6 +1,6 @@
 'use strict';
 
-const BUILD = 'v27';
+const BUILD = 'v28';
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
@@ -327,6 +327,8 @@ async function connect() {
   { const di = $('devinfo'); if (di) di.textContent = t('devPrefix') + ' ' + (state.device.name || '(no name)'); }
   // Prefill a saved per-device password (convenience) if the field is empty.
   try { const saved = state.deviceId && LS.get(skPwd(state.deviceId)); if (saved && $('pwd-in') && !$('pwd-in').value) $('pwd-in').value = saved; } catch (e) {}
+  // Else prefill the app factory default 888888 (DialogManager else-branch auto-sends it); a user value always overrides.
+  try { if ($('pwd-in') && !$('pwd-in').value) $('pwd-in').value = '888888'; } catch (e) {}
   log('device: ' + (state.device.name || '(no name)') + ' (id redacted)', 'log-tx');
   try {
     state.server = await state.device.gatt.connect();
