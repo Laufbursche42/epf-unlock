@@ -94,11 +94,6 @@ label { color: var(--label); font-size: 12px; text-transform: uppercase; letter-
   border-radius: 8px; padding: 9px 11px; margin: 0; }
 .warn b { color: var(--warn-strong); }
 
-/* Read-out banner (first card): the warn family, a touch stronger, with a title line. */
-.banner-card { padding: 12px 14px; }
-.banner { font-size: 13px; line-height: 1.5; border-color: var(--warn-strong); padding: 11px 13px; }
-.banner b { display: inline-block; margin-bottom: 4px; font-size: 14px; letter-spacing: .01em; }
-
 /* Gated-control reason note under a tuning or settings card. */
 .reason { color: var(--warn); }
 pre#log { margin: 0; background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 10px;

@@ -11,13 +11,10 @@ window.I18N = {
     themeToLight: "Auf helle Darstellung umschalten",
     themeToDark: "Auf dunkle Darstellung umschalten",
 
-    bannerTuneTitle: "Nur Auslesen - kein Tuning in diesem Werkzeug",
-    bannerTuneBody: "Dieses Werkzeug liest den ePowerFun-Scooter aus: Live-Telemetrie, Parameter und Geräte-Info funktionieren. Es schreibt nichts auf den Scooter. Der Schreibweg für Tempolimits und Einstellungen ist zwar aus der App dokumentiert, aber an keinem echten Gerät bestätigt, deshalb sind alle Tuning-Bedienelemente in diesem Build deaktiviert. Details je Feld über das Fragezeichen.",
-
     s1Title: "So fängst du an",
     sub: "Den EPF-Scooter (ePowerFun) live über Web Bluetooth auslesen. Läuft in Chrome oder Edge auf Android beziehungsweise Desktop. Nichts verlässt dein Gerät.",
     startHintGuide: "Neu hier? In der <a href=\"GUIDE.de.md\" data-doc=\"GUIDE\" data-t=\"footGuide\">Anleitung</a> steht jeder Schritt.",
-    expWarn: "Machbarkeitsstudie: Diese Seite zeigt, was das Bluetooth-Protokoll eines ePowerFun-E-Scooters technisch möglich macht, sie ist kein fertiges Produkt. Fehlerfreier Betrieb wird nicht versprochen, es gibt keinerlei Gewährleistung. Alles, was du hier tust, tust du auf eigenes Risiko. <a href=\"#\" data-open-disclaimer>Haftungsausschluss lesen</a>.",
+    expWarn: "Machbarkeitsstudie: Diese Seite verbindet sich mit einem ePowerFun-E-Scooter, liest live aus und weist das Bluetooth-Protokoll nach - ein fertiges Produkt ist sie nicht. Getunt wird nicht, Sperren und Entsperren geht nicht: Der Schreibweg für Tempolimits und Einstellungen ist aus der App dokumentiert, aber an keinem echten Gerät bestätigt, deshalb bleibt alles beim reinen Auslesen. Fehlerfreier Betrieb wird nicht versprochen, es gibt keinerlei Gewährleistung, alles auf eigenes Risiko. <a href=\"#\" data-open-disclaimer>Haftungsausschluss lesen</a>.",
     ownDevice: "Dieser Build schreibt nichts auf den Scooter, er liest nur aus. Der Vollständigkeit halber: Ein Anheben der Höchstgeschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt.",
 
     s2Title: "Verbindung",
@@ -169,13 +166,10 @@ window.I18N = {
     themeToLight: "Switch to light theme",
     themeToDark: "Switch to dark theme",
 
-    bannerTuneTitle: "Read-out only - no tuning in this tool",
-    bannerTuneBody: "This tool reads the ePowerFun scooter: live telemetry, parameters and device info work. It writes nothing to the scooter. The write path for speed limits and settings is documented from the app but has not been confirmed on any real device, so every tuning control in this build is disabled. Per-field detail is behind the question mark.",
-
     s1Title: "Getting started",
     sub: "Read your EPF scooter (ePowerFun) live over Web Bluetooth. Runs in Chrome or Edge on Android or desktop. Nothing leaves your device.",
     startHintGuide: "New here? Every step is in the <a href=\"GUIDE.en.md\" data-doc=\"GUIDE\" data-t=\"footGuide\">guide</a>.",
-    expWarn: "Feasibility study: this page shows what the Bluetooth protocol of an ePowerFun scooter makes possible, it is not a finished product. Error-free operation is not promised and there is no warranty of any kind. Whatever you do here, you do at your own risk. <a href=\"#\" data-open-disclaimer>Read the disclaimer</a>.",
+    expWarn: "Feasibility study: this page connects to an ePowerFun scooter, reads it live and proves the Bluetooth protocol - it is not a finished product. It does not tune and cannot lock or unlock: the write path for speed limits and settings is documented from the app but unconfirmed on any real device, so it stays read-out only. Error-free operation is not promised, there is no warranty of any kind, and whatever you do here you do at your own risk. <a href=\"#\" data-open-disclaimer>Read the disclaimer</a>.",
     ownDevice: "This build writes nothing to the scooter, it only reads it. For completeness: raising the top speed would remove the throttle limit, the road approval would lapse and operating it on public roads would then not be allowed.",
 
     s2Title: "Connection",
