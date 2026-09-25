@@ -7,7 +7,7 @@ const BUILD = (function () {
     return m ? ('v' + m[1]) : 'dev';
   } catch (e) { return 'dev'; }
 })();
-const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
+const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
@@ -26,6 +26,7 @@ const state = {
   paramsBuf: new Uint8Array(400),
 
   publicLog: true,   // anonymize the log (default on; toggled by the Public Log checkbox)
+  diag: false,       // verbose diagnostic logging (default off; toggled by the Diag Log checkbox)
   logBuffer: [],     // { raw, cls } lines; raw keeps \x01 sentinels, anonymized on display/copy/save
 
   monitorSeen: false, baseParamsSeen: false, uiPrefilled: false, advBuilt: false,
@@ -237,7 +238,7 @@ function openDocFile(file, anchor, titleKey) {
 }
 const HELP = {
   disclaimer: ['footDisclaimer', 'disclaimerText'],
-  adv: ['advTitle', 'helpAdv'], reg: ['regTitle', 'helpReg'], publiclog: ['publicLogTitle', 'publicLogHelp'],
+  adv: ['advTitle', 'helpAdv'], reg: ['regTitle', 'helpReg'], publiclog: ['publicLogTitle', 'publicLogHelp'], diaglog: ['diagLogTitle', 'diagLogHelp'],
 
   hLs: ['lsTitle', 'hLs'], hMaxRow: ['lblMax', 'hMaxRow'],
   hEco: ['lblEco', 'hEco'], hComfort: ['lblComfort', 'hComfort'], hSport: ['lblSport', 'hSport'], hCruise: ['lblCruise', 'hCruise'],
@@ -311,6 +312,8 @@ const CONN_CTRL_IDS = [
 function setControlsEnabled(on) {
   CONN_CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; });
   setAdvRowsEnabled(on);
+  // Hide-until-connected: everything between the connect card and the log stays hidden until linked.
+  document.querySelectorAll('.conn-only').forEach(el => { el.hidden = !on; });
 }
 function setAdvRowsEnabled(on) {
   const box = $('adv-rows'); if (!box) return;
@@ -343,6 +346,7 @@ async function connect() {
     state.dataRx.addEventListener('characteristicvaluechanged', onDataNotify);
     await state.cmdRx.startNotifications();
     state.cmdRx.addEventListener('characteristicvaluechanged', onCmdNotify);
+    if (state.diag) log('diag: GATT resolved - data ' + U.DATA_SERVICE + ' (tx ' + U.DATA_TX + ' rx ' + U.DATA_RX + '), cmd ' + U.CMD_SERVICE + ' (tx ' + U.CMD_TX + ' rx ' + U.CMD_RX + ')');
   } catch (e) {
     setStatus('no-service'); log('connect/service failed: ' + e.message, 'log-err');
     log('scooter may only advertise F1F0/F2F0 when on and not linked to the manufacturer app', 'log-err');
@@ -769,6 +773,12 @@ function wireControls() {
       LS.set(LS_PUBLICLOG, pubCb.checked ? '1' : '0');
       renderLog();
     });
+  }
+  const diagCb = $('diag-log');
+  if (diagCb) {
+    state.diag = LS.get(LS_DIAGLOG, '0') === '1';
+    diagCb.checked = state.diag;
+    diagCb.addEventListener('change', () => { state.diag = diagCb.checked; LS.set(LS_DIAGLOG, diagCb.checked ? '1' : '0'); });
   }
   const rem = $('remember-pwd');
   if (rem) {

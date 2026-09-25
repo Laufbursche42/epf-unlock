@@ -49,7 +49,7 @@
     <p class="hint" data-t="controlsHint"></p>
   </div>
 
-  <div class="card">
+  <div class="card conn-only" hidden>
     <h2 data-t="liveTitle"></h2>
     <div class="grid">
       <div class="tile"><b id="t-speed">-</b><small data-t="tileSpeed"></small></div>
@@ -68,7 +68,7 @@
     <p class="hint" data-t="liveHint"></p>
   </div>
 
-  <div class="card" id="lock-speed-card">
+  <div class="card conn-only" id="lock-speed-card" hidden>
     <div class="card-head"><h2 data-t="lsTitle"></h2><button type="button" class="help-btn" data-help="hLs" aria-label="Info">?</button></div>
     <p class="warn" data-t="lsWarn"></p>
     <p class="hint" id="ls-state"></p>
@@ -90,7 +90,7 @@
     <p class="hint reason" data-t="reasonTune"></p>
   </div>
 
-  <div class="card">
+  <div class="card conn-only" hidden>
     <h2 data-t="setTitle"></h2>
     <div class="set-row">
       <div class="lblrow"><label data-t="lblGear"></label><button type="button" class="help-btn" data-help="hGear" aria-label="Info">?</button></div>
@@ -130,7 +130,7 @@
     <p class="hint" data-t="setHint"></p>
   </div>
 
-  <div class="card">
+  <div class="card conn-only" hidden>
     <h2 data-t="moreTitle"></h2>
     <div class="set-row"><div class="lblrow"><label data-t="lblName"></label><button type="button" class="help-btn" data-help="hName" aria-label="Info">?</button></div><input id="name-in" type="text" maxlength="20"><button id="btn-name" data-t="btnSend"></button></div>
     <div class="set-row"><div class="lblrow"><label data-t="lblNewPwd"></label><button type="button" class="help-btn" data-help="hNewPwd" aria-label="Info">?</button></div><input id="newpwd-in" type="password"><button id="btn-setpwd" data-t="btnSend"></button></div>
@@ -144,7 +144,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card conn-only" hidden>
     <div class="card-head"><h2 data-t="advTitle"></h2><button type="button" class="help-btn" data-help="adv" aria-label="Info">?</button></div>
     <p class="warn" data-t="advWriteWarn"></p>
     <div id="adv-rows"></div>
@@ -162,7 +162,7 @@
     <p class="hint reason" data-t="regReason"></p>
   </div>
 
-  <div class="card">
+  <div class="card conn-only" hidden>
     <h2 data-t="infoTitle"></h2>
     <div class="doc-table"><table><tbody id="info-body"></tbody></table></div>
     <div class="btns">
@@ -180,18 +180,23 @@
         <input type="checkbox" id="public-log" checked>
         <button type="button" class="help-btn" data-help="publiclog" aria-label="?">?</button>
       </div>
+      <div class="log-opt">
+        <span data-t="diagLogLabel"></span>
+        <input type="checkbox" id="diag-log">
+        <button type="button" class="help-btn" data-help="diaglog" aria-label="?">?</button>
+      </div>
     </div>
-    <div class="set-row">
+    <div class="set-row conn-only" hidden>
       <label data-t="lblRawSend"></label>
       <input id="raw-in" type="text" placeholder="AB 00 0A ... / AT+DEVICE?">
       <button id="btn-raw-send" data-t="btnRawSend"></button>
     </div>
-    <p class="hint" data-t="rawSendHint"></p>
+    <p class="hint conn-only" data-t="rawSendHint" hidden></p>
     <div class="btns">
       <button type="button" id="btn-copy-log" data-t="btnCopyLog"></button>
       <button type="button" id="btn-clear-log" data-t="btnClearLog"></button>
       <button type="button" id="btn-save-log" data-t="btnSaveLog"></button>
-      <button type="button" id="btn-diag" class="span2" data-t="btnDiag"></button>
+      <button type="button" id="btn-diag" data-t="btnDiag"></button>
     </div>
     <p class="hint" data-t="diagHint"></p>
     <pre id="log"></pre>
@@ -247,8 +252,8 @@
   </div>
 </dialog>
 
-<script src="i18n.js?v=25"></script>
+<script src="i18n.js?v=26"></script>
 <script src="protocol.js?v=22"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>
