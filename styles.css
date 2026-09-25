@@ -93,6 +93,14 @@ label { color: var(--label); font-size: 12px; text-transform: uppercase; letter-
 .warn { color: var(--warn); font-size: 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
   border-radius: 8px; padding: 9px 11px; margin: 0; }
 .warn b { color: var(--warn-strong); }
+
+/* Read-out banner (first card): the warn family, a touch stronger, with a title line. */
+.banner-card { padding: 12px 14px; }
+.banner { font-size: 13px; line-height: 1.5; border-color: var(--warn-strong); padding: 11px 13px; }
+.banner b { display: inline-block; margin-bottom: 4px; font-size: 14px; letter-spacing: .01em; }
+
+/* Gated-control reason note under a tuning or settings card. */
+.reason { color: var(--warn); }
 pre#log { margin: 0; background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 10px;
   font-family: var(--mono); font-size: 11.5px; color: var(--muted); max-height: 220px; overflow: auto;
   white-space: pre-wrap; word-break: break-word; overscroll-behavior: contain; }
@@ -155,7 +163,7 @@ dialog::backdrop { background: var(--backdrop); }
   border-top: 1px solid var(--line); }
 .doc-foot button { flex: 0 0 auto; padding: 10px 22px; }
 
-/* Shortcut links (Verknuepfungen) - exakt nach trfm-unlock: vertikaler Stack, URL-Box in --value. */
+/* Shortcut links - same as trfm-unlock: vertical stack, URL box in --value. */
 .linkrow { display: flex; flex-direction: column; gap: 5px; }
 .linkrow .lbl { color: var(--label); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .copy { margin: 0; font-family: var(--mono); font-size: 11.5px; background: var(--field); border: 1px solid var(--line);
@@ -173,7 +181,7 @@ dialog::backdrop { background: var(--backdrop); }
 #help { max-width: 520px; }
 #help #help-body { margin: 0; }
 
-/* Per-Wert Hilfe-Icon in einer Einstellzeile (EPF Tool). */
+/* Per-value help icon in a settings row (EPF Tool). */
 .set-row .lblrow { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
 .set-row .lblrow label { grid-column: auto; }
 .set-row .lblrow .help-btn { width: 18px; height: 18px; min-width: 18px; font-size: 11px; }

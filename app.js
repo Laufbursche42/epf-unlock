@@ -42,7 +42,8 @@ function log(m, cls) {
   const span = document.createElement('div');
   if (cls) span.className = cls;
   span.textContent = line;
-  el.insertBefore(span, el.firstChild);
+  el.appendChild(span);              // newest at the bottom, like lb-tool-web
+  el.scrollTop = el.scrollHeight;    // autoscroll to the newest line
 }
 function clearLog() { logLines.length = 0; const el = $('log'); if (el) el.textContent = ''; logDiagnosticHeader(); log('log cleared'); }
 function logDiagnosticHeader() {
@@ -205,11 +206,15 @@ const HELP = {
   hName: ['lblName', 'hName'], hNewPwd: ['lblNewPwd', 'hNewPwd'], hPwdProt: ['lblPwdProt', 'hPwdProt'],
   hNfc: ['lblNfc', 'hNfc'], hBlinker: ['lblBlinker', 'hBlinker'], hDrive: ['lblDrive', 'hDrive'],
 };
+// Help rows for controls that WRITE the device get the gated reason appended (read-out build).
+const WRITE_HELP_KEYS = new Set(['hLs', 'hMaxRow', 'hEco', 'hComfort', 'hSport', 'hCruise',
+  'hGear', 'hHead', 'hAtmo', 'hCruiseSw', 'hBoot', 'hUnit', 'hLock',
+  'hName', 'hNewPwd', 'hPwdProt', 'hNfc', 'hBlinker', 'hDrive']);
 function openHelp(key) {
   const m = HELP[key]; if (!m) return;
   const dlg = $('help'); if (!dlg) return;
   const ti = $('help-title'); if (ti) ti.textContent = t(m[0]);
-  const bo = $('help-body'); if (bo) bo.textContent = t(m[1]);
+  const bo = $('help-body'); if (bo) bo.textContent = WRITE_HELP_KEYS.has(key) ? (t(m[1]) + ' ' + t('reasonTune')) : t(m[1]);
   if (dlg.showModal) { try { dlg.showModal(); } catch (e) { dlg.setAttribute('open', ''); } } else dlg.setAttribute('open', '');
 }
 function wireDocViewer() {
@@ -238,11 +243,22 @@ function setStatus(s) {
   const cb = $('btn-conn');
   if (cb) { const on = (s === 'connecting' || s === 'linking' || s === 'connected'); cb.textContent = on ? t('btnDisconnect') : t('btnConnect'); cb.dataset.act = on ? 'disconnect' : 'connect'; }
 }
-const CTRL_IDS = ['btn-lock-toggle', 'btn-write-gears', 'max-in', 'lm1-in', 'lm2-in', 'lm3-in', 'lc-in', 'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise',
-  'btn-boot', 'btn-unit', 'btn-lock', 'name-in', 'btn-name', 'newpwd-in', 'btn-setpwd', 'btn-pwdprot',
-  'btn-nfc', 'btn-blinker', 'drive-in', 'btn-drive', 'btn-delnfc', 'btn-resettrip',
-  'btn-qdevice', 'btn-quid', 'btn-qtype'];
-function setControlsEnabled(on) { CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; }); }
+// Read-only queries: enabled on connect. They only READ device state, never write.
+const READ_CTRL_IDS = ['btn-qdevice', 'btn-quid', 'btn-qtype'];
+// Write controls: everything that would change device state. Read-out build keeps them
+// permanently disabled (never re-enabled by setControlsEnabled). Their read-back fields are
+// still populated for viewing, but stay disabled so they read as display fields, not inputs.
+const WRITE_CTRL_IDS = ['btn-lock-toggle', 'btn-write-gears', 'max-in', 'lm1-in', 'lm2-in', 'lm3-in', 'lc-in',
+  'btn-gear', 'btn-head', 'btn-atmo', 'btn-cruise', 'btn-boot', 'btn-unit', 'btn-lock',
+  'gear-in', 'head-in', 'atmo-in', 'cruise-in', 'boot-in', 'unit-in', 'lock-in',
+  'name-in', 'btn-name', 'newpwd-in', 'btn-setpwd', 'pwdprot-in', 'btn-pwdprot',
+  'nfc-in', 'btn-nfc', 'blinker-in', 'btn-blinker', 'drive-in', 'btn-drive', 'btn-delnfc', 'btn-resettrip'];
+// setControlsEnabled toggles ONLY the read queries. Write controls stay disabled at all times.
+function setControlsEnabled(on) { READ_CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; }); }
+// Belt-and-braces: force every write control disabled at startup, independent of the markup, and
+// never touch them again. Read-back fields keep their value set programmatically (that still works
+// on a disabled element), so the current state stays visible while the write stays impossible.
+function lockDownWriteControls() { WRITE_CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = true; }); }
 
 async function connect() {
   if (!navigator.bluetooth) { log('web bluetooth unavailable, use chrome/edge over https or localhost', 'log-err'); return; }
@@ -322,7 +338,7 @@ function startPoll() {
   state.pollTimer = setInterval(() => {
     if (state.connected) writeData(EPF.buildKeep(), 'keep').catch(() => {});
   }, 1500);
-  log('poll started (nur keep-heartbeat, monitor-modus)');
+  log('poll started (keep-heartbeat only, monitor mode)');
 }
 function stopPoll() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -345,8 +361,13 @@ async function writeCmd(bytes, label) {
 }
 function baseReady() { return state.monitorSeen && state.baseParamsSeen; }
 
+// Read-out build: every write path is gated. The controls are permanently disabled, so a handler
+// can only fire if something bypasses the UI - then this guard stops the write and logs the reason.
+function writeBlocked() { log(t('reasonTuneShort'), 'log-err'); return true; }
+
 async function sendBaseChange(changes) {
-  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen (Telemetrie plus Basiswerte), damit keine Default-Schalter geschrieben werden', 'log-err'); return; }
+  if (writeBlocked()) return;
+  if (!baseReady()) { log('aborted: device state not fully read yet (telemetry plus base values), so no default switches get written', 'log-err'); return; }
   const clone = Object.assign({}, state.base, changes);
 
   await writeData(EPF.buildBaseParamsFrame(clone, state.customHeadMonitor), 'setBaseParams');
@@ -389,7 +410,7 @@ function applyCmd(r) {
     case 'tlVoice': setSel('blinker-in', firstIsOne(r.value)); break;
     case 'driveType': { const el = $('drive-in'); if (el) el.value = String(r.value).trim(); setInfoRow('infoDevType', 'drive ' + r.value); break; }
     case 'setName': log('set name: ' + (r.value ? 'ok' : 'fail'), r.value ? 'log-ok' : 'log-err'); break;
-    case 'setPwd': log('set password: ' + (r.value ? 'ok' : 'fail'), r.value ? 'log-ok' : 'log-err'); break;
+    case 'setPwd': log('set password: ' + (r.value ? 'ok' : 'fail'), r.value ? 'log-ok' : 'log-err'); break;  // scan-ok: UI log label, not a secret
   }
 }
 
@@ -409,13 +430,13 @@ function renderTiles() {
   setTile('t-fw', fw || null);
 }
 const ADV_ROWS = [
-  ['limitedSpeedValue', 'Geschwindigkeitsbegrenzung (gelesen)', ''],
-  ['maxDischargeCurrent', 'Max. Entladestrom', 'A'], ['maxBrakingCurrent', 'Max. Bremsstrom', 'A'],
-  ['voltageProtection', 'Spannungsschutz', 'V'], ['maxModulationDepth', 'Modulationstiefe', '%'],
-  ['motorPolePairs', 'Motor-Polpaare', ''], ['acceleratedThrottleResponse', 'Gasansprechverhalten', '1-10'],
-  ['acceleratorBrakeResponse', 'Bremsansprechverhalten', '1-10'], ['motorDiameter', 'Raddurchmesser', ''],
-  ['pwmFrequency', 'PWM-Frequenz', ''], ['cruiseTime', 'Tempomat-Zeit', ''], ['shutdownTime', 'Abschaltzeit', ''],
-  ['serviceMileage', 'Wartungsintervall', 'km'], ['lastServiceMileage', 'Letzte Wartung', 'km'],
+  ['limitedSpeedValue', 'Speed limit (read)', ''],
+  ['maxDischargeCurrent', 'Max. discharge current', 'A'], ['maxBrakingCurrent', 'Max. braking current', 'A'],
+  ['voltageProtection', 'Voltage protection', 'V'], ['maxModulationDepth', 'Modulation depth', '%'],
+  ['motorPolePairs', 'Motor pole pairs', ''], ['acceleratedThrottleResponse', 'Throttle response', '1-10'],
+  ['acceleratorBrakeResponse', 'Brake response', '1-10'], ['motorDiameter', 'Wheel diameter', ''],
+  ['pwmFrequency', 'PWM frequency', ''], ['cruiseTime', 'Cruise control time', ''], ['shutdownTime', 'Shutdown time', ''],
+  ['serviceMileage', 'Service interval', 'km'], ['lastServiceMileage', 'Last service', 'km'],
 ];
 function advRow(body, label, value) {
   const tr = document.createElement('tr');
@@ -427,9 +448,9 @@ function renderAdv() {
   const a = state.fullAdv, body = $('adv-body'); if (!a || !body) return;
   body.textContent = '';
   ADV_ROWS.forEach(([k, lbl, u]) => advRow(body, lbl, (a[k] !== undefined ? a[k] : '-') + (u ? ' ' + u : '')));
-  advRow(body, 'Tempomat (Schalter)', a.cruiseSw ? 'an' : 'aus');
-  advRow(body, 'Metrisch', a.isMetric ? 'km' : 'mph');
-  advRow(body, 'Zero-Start', a.isZeroStart ? 'an' : 'aus');
+  advRow(body, 'Cruise control (switch)', a.cruiseSw ? 'on' : 'off');
+  advRow(body, 'Metric', a.isMetric ? 'km' : 'mph');
+  advRow(body, 'Zero-Start', a.isZeroStart ? 'on' : 'off');
 }
 function setInfoRow(key, value) {
   const body = $('info-body'); if (!body) return;
@@ -494,7 +515,8 @@ function updateLockState() {
 function clampByte(v) { let n = parseInt(v, 10); if (isNaN(n)) n = 0; return Math.max(0, Math.min(255, n)); }
 
 async function writeGears() {
-  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
+  if (writeBlocked()) return;
+  if (!baseReady()) { log('aborted: device state not fully read yet', 'log-err'); return; }
   await sendBaseChange({
     limitMode1: clampByte($('lm1-in').value), limitMode2: clampByte($('lm2-in').value),
     limitMode3: clampByte($('lm3-in').value), limitCruise: clampByte($('lc-in').value),
@@ -502,7 +524,8 @@ async function writeGears() {
 }
 
 async function applyDrossel(maxKmh) {
-  if (!baseReady()) { log('abgebrochen: Geraetezustand noch nicht vollstaendig gelesen', 'log-err'); return; }
+  if (writeBlocked()) return;
+  if (!baseReady()) { log('aborted: device state not fully read yet', 'log-err'); return; }
   await sendBaseChange({ limitMode3: maxKmh });
   await sleep(160);
   await writeData(EPF.sendTran(), 'tran'); await sleep(40);
@@ -520,7 +543,7 @@ function wireControls() {
       await applyDrossel(22);
     } else {
       const mx = parseInt($('max-in').value, 10);
-      if (isNaN(mx) || mx < 1 || mx > 99) { log('Hoechstgeschwindigkeit: Wert 1 bis 99 km/h erwartet', 'log-err'); return; }
+      if (isNaN(mx) || mx < 1 || mx > 99) { log('max speed: expected a value from 1 to 99 km/h', 'log-err'); return; }
       await applyDrossel(mx);
     }
   });
@@ -534,13 +557,13 @@ function wireControls() {
   sw('btn-unit', 'unit-in', 'metricInchSw');
   sw('btn-lock', 'lock-in', 'lockSw');
 
-  $('btn-name').addEventListener('click', () => { const n = $('name-in').value.trim(); if (n) writeCmd(EPF.AT.setName(n), 'AT+NAME'); });
-  $('btn-setpwd').addEventListener('click', () => { const p = $('newpwd-in').value; if (p) writeCmd(EPF.AT.setPwd(p), 'AT+PWDM'); });
-  $('btn-pwdprot').addEventListener('click', () => writeCmd($('pwdprot-in').value === '1' ? EPF.AT.setHasPwdOn() : EPF.AT.setHasPwdOff(), 'AT+TYPE'));
-  $('btn-nfc').addEventListener('click', () => writeCmd(EPF.AT.setNfc($('nfc-in').value === '1'), 'AT+NFC'));
-  $('btn-blinker').addEventListener('click', () => writeCmd(EPF.AT.setTlVoice($('blinker-in').value === '1' ? 1 : 0), 'AT+TLVOICEOFF'));
-  $('btn-drive').addEventListener('click', () => writeCmd(EPF.AT.setDriveType(parseInt($('drive-in').value, 10) || 0), 'AT+DRIVEMODE'));
-  $('btn-delnfc').addEventListener('click', () => writeCmd(EPF.AT.nfcDelete(), 'AT+DEL'));
+  $('btn-name').addEventListener('click', () => { if (writeBlocked()) return; const n = $('name-in').value.trim(); if (n) writeCmd(EPF.AT.setName(n), 'AT+NAME'); });
+  $('btn-setpwd').addEventListener('click', () => { if (writeBlocked()) return; const p = $('newpwd-in').value; if (p) writeCmd(EPF.AT.setPwd(p), 'AT+PWDM'); });
+  $('btn-pwdprot').addEventListener('click', () => { if (writeBlocked()) return; writeCmd($('pwdprot-in').value === '1' ? EPF.AT.setHasPwdOn() : EPF.AT.setHasPwdOff(), 'AT+TYPE'); });
+  $('btn-nfc').addEventListener('click', () => { if (writeBlocked()) return; writeCmd(EPF.AT.setNfc($('nfc-in').value === '1'), 'AT+NFC'); });
+  $('btn-blinker').addEventListener('click', () => { if (writeBlocked()) return; writeCmd(EPF.AT.setTlVoice($('blinker-in').value === '1' ? 1 : 0), 'AT+TLVOICEOFF'); });
+  $('btn-drive').addEventListener('click', () => { if (writeBlocked()) return; writeCmd(EPF.AT.setDriveType(parseInt($('drive-in').value, 10) || 0), 'AT+DRIVEMODE'); });
+  $('btn-delnfc').addEventListener('click', () => { if (writeBlocked()) return; writeCmd(EPF.AT.nfcDelete(), 'AT+DEL'); });
   $('btn-resettrip').addEventListener('click', () => log('note: trip reset is bound to setBaseParams(pos 2) in the app, not proven as its own frame; not sent', 'log-err'));
 
   $('btn-qdevice').addEventListener('click', () => writeCmd(EPF.AT.deviceQuery(), 'AT+DEVICE?'));
@@ -572,6 +595,7 @@ window.addEventListener('DOMContentLoaded', () => {
   wireDocViewer();
   wireControls();
   setControlsEnabled(false);
+  lockDownWriteControls();
   setStatus('disconnected');
   logDiagnosticHeader();
   if (!navigator.bluetooth) log('navigator.bluetooth missing, use chrome/edge over https or localhost', 'log-err');

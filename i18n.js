@@ -1,8 +1,8 @@
 'use strict';
 
-// Jede sichtbare Zeichenkette der Seite, in beiden Sprachen. Die Schlüssel passen zu den
-// data-t-Attributen in index.html und zu den t()-Aufrufen in app.js. Deutsch ist die Voreinstellung.
-// Das Log bleibt technisch und englisch (ASCII), damit ein Mitschnitt in einer Sprache bleibt.
+// Every visible string on the page, in both languages. The keys match the
+// data-t attributes in index.html and the t() calls in app.js. German is the default.
+// The log stays technical and English (ASCII), so a capture stays in one language.
 window.I18N = {
   de: {
     pageTitle: "Laufbursche EPF Tool",
@@ -11,11 +11,14 @@ window.I18N = {
     themeToLight: "Auf helle Darstellung umschalten",
     themeToDark: "Auf dunkle Darstellung umschalten",
 
+    bannerTuneTitle: "Nur Auslesen - kein Tuning in diesem Werkzeug",
+    bannerTuneBody: "Dieses Werkzeug liest den ePowerFun-Scooter aus: Live-Telemetrie, Parameter und Geräte-Info funktionieren. Es schreibt nichts auf den Scooter. Der Schreibweg für Tempolimits und Einstellungen ist zwar aus der App dokumentiert, aber an keinem echten Gerät bestätigt, deshalb sind alle Tuning-Bedienelemente in diesem Build deaktiviert. Details je Feld über das Fragezeichen.",
+
     s1Title: "So fängst du an",
-    sub: "Live über Web Bluetooth mit deinem EPF-Scooter (ePowerFun) reden. Läuft in Chrome oder Edge auf Android beziehungsweise Desktop. Nichts verlässt dein Gerät.",
+    sub: "Den EPF-Scooter (ePowerFun) live über Web Bluetooth auslesen. Läuft in Chrome oder Edge auf Android beziehungsweise Desktop. Nichts verlässt dein Gerät.",
     startHintGuide: "Neu hier? In der <a href=\"GUIDE.de.md\" data-doc=\"GUIDE\" data-t=\"footGuide\">Anleitung</a> steht jeder Schritt.",
     expWarn: "Machbarkeitsstudie: Diese Seite zeigt, was das Bluetooth-Protokoll eines ePowerFun-E-Scooters technisch möglich macht, sie ist kein fertiges Produkt. Fehlerfreier Betrieb wird nicht versprochen, es gibt keinerlei Gewährleistung. Alles, was du hier tust, tust du auf eigenes Risiko. <a href=\"#\" data-open-disclaimer>Haftungsausschluss lesen</a>.",
-    ownDevice: "Nur am eigenen Fahrzeug auf privatem Gelände. Das Anheben der Höchstgeschwindigkeit hebt die Drossel auf, die ABE erlischt und der Betrieb auf öffentlichen Wegen ist dann nicht erlaubt.",
+    ownDevice: "Dieser Build schreibt nichts auf den Scooter, er liest nur aus. Der Vollständigkeit halber: Ein Anheben der Höchstgeschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt.",
 
     s2Title: "Verbindung",
     pwdLabel: "Passwort (falls gesetzt)",
@@ -58,6 +61,9 @@ window.I18N = {
     hMaxRow: "Die Werksdrossel, ein globaler Wert im Controller (Register 0x20). Dieser Hebel entscheidet über die absolute Höchstgeschwindigkeit. Kann von der Firmware auf 22 km/h begrenzt werden.",
     hLs: "Zwei Wege: oben die Werksdrossel mit einem Sperren-/Entsperren-Knopf, darunter die drei Fahrstufen einzeln mit eigenem Schreiben-Knopf.",
 
+    reasonTune: "In diesem Build deaktiviert. Der Schreib-Frame ist dokumentiert, aber am echten Gerät nicht bestätigt (offene Punkte: Custom-Head-Bytes, Firmware-Klemme über 22 km/h, Passwortpflicht ab Werk, Quittungs-Parsing, genaue Sende-Sequenz für Register 0x20).",
+    reasonTuneShort: "Deaktiviert: unbestätigter Schreibweg (nur Auslesen).",
+
     setTitle: "Einstellungen",
     lblGear: "Fahrstufe",
     gear1: "1 (Eco)",
@@ -74,7 +80,7 @@ window.I18N = {
     optKm: "km/h (metrisch)",
     optMi: "mph (imperial)",
     btnSend: "Senden",
-    setHint: "Schalter und Fahrstufe werden zusammen an den Scooter gesendet. Das geht erst, sobald einmal Werte gelesen wurden.",
+    setHint: "Die aktuellen Schalter und die Fahrstufe werden nur angezeigt. Das Senden ist in diesem Build deaktiviert.",
 
     moreTitle: "Weitere Einstellungen",
     lblName: "Rollername",
@@ -135,7 +141,7 @@ window.I18N = {
 
     footGuide: "Anleitung",
     footDisclaimer: "Haftungsausschluss",
-    disclaimerText: "Dieses Werkzeug ist eine Machbarkeitsstudie, kein fertiges Produkt. Es gibt keine Gewährleistung und keine Garantie für fehlerfreien Betrieb. Das Anheben der Geschwindigkeit hebt die Drossel auf: die ABE erlischt und der Betrieb auf öffentlichen Wegen ist dann nicht erlaubt. Nutzung ausschliesslich am eigenen Fahrzeug und auf eigenes Risiko. Die Seite spricht nur lokal per Bluetooth mit dem Gerät, es werden keine Daten an einen Server gesendet. ePowerFun ist eine Marke des jeweiligen Inhabers. Dieses Projekt ist unabhängig und nicht mit ePowerFun verbunden.",
+    disclaimerText: "Dieses Werkzeug ist eine Machbarkeitsstudie, kein fertiges Produkt. Es gibt keine Gewährleistung und keine Garantie für fehlerfreien Betrieb. Dieser Build schreibt nichts auf den Scooter, er liest ihn nur aus. Der Vollständigkeit halber: Ein Anheben der Geschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschliesslich am eigenen Fahrzeug und auf eigenes Risiko. Die Seite spricht nur lokal per Bluetooth mit dem Gerät, es werden keine Daten an einen Server gesendet. ePowerFun ist eine Marke des jeweiligen Inhabers. Dieses Projekt ist unabhängig und nicht mit ePowerFun verbunden.",
     footSource: "Quellcode",
     footReadme: "Readme",
     footLicense: "Lizenz",
@@ -163,11 +169,14 @@ window.I18N = {
     themeToLight: "Switch to light theme",
     themeToDark: "Switch to dark theme",
 
+    bannerTuneTitle: "Read-out only - no tuning in this tool",
+    bannerTuneBody: "This tool reads the ePowerFun scooter: live telemetry, parameters and device info work. It writes nothing to the scooter. The write path for speed limits and settings is documented from the app but has not been confirmed on any real device, so every tuning control in this build is disabled. Per-field detail is behind the question mark.",
+
     s1Title: "Getting started",
-    sub: "Talk to your EPF scooter (ePowerFun) live over Web Bluetooth. Runs in Chrome or Edge on Android or desktop. Nothing leaves your device.",
+    sub: "Read your EPF scooter (ePowerFun) live over Web Bluetooth. Runs in Chrome or Edge on Android or desktop. Nothing leaves your device.",
     startHintGuide: "New here? Every step is in the <a href=\"GUIDE.en.md\" data-doc=\"GUIDE\" data-t=\"footGuide\">guide</a>.",
     expWarn: "Feasibility study: this page shows what the Bluetooth protocol of an ePowerFun scooter makes possible, it is not a finished product. Error-free operation is not promised and there is no warranty of any kind. Whatever you do here, you do at your own risk. <a href=\"#\" data-open-disclaimer>Read the disclaimer</a>.",
-    ownDevice: "Only on your own vehicle on private ground. Raising the top speed removes the throttle limit, the road approval lapses and operating it on public roads is then not allowed.",
+    ownDevice: "This build writes nothing to the scooter, it only reads it. For completeness: raising the top speed would remove the throttle limit, the road approval would lapse and operating it on public roads would then not be allowed.",
 
     s2Title: "Connection",
     pwdLabel: "Password (if set)",
@@ -210,6 +219,9 @@ window.I18N = {
     hMaxRow: "The factory limiter, a single global value in the controller (register 0x20). This lever decides the absolute top speed. May be capped to 22 km/h by the firmware.",
     hLs: "Two ways: on top the factory limiter with a lock/unlock button, below it the three ride stages individually with their own write button.",
 
+    reasonTune: "Disabled in this build. The write frame is documented but unconfirmed on a real device (open points: custom-head bytes, firmware clamp above 22 km/h, factory password requirement, write-ack parsing, exact send sequence for register 0x20).",
+    reasonTuneShort: "Disabled: unverified write path (read-out only).",
+
     setTitle: "Settings",
     lblGear: "Ride stage",
     gear1: "1 (Eco)",
@@ -226,7 +238,7 @@ window.I18N = {
     optKm: "km/h (metric)",
     optMi: "mph (imperial)",
     btnSend: "Send",
-    setHint: "Switches and ride stage are sent to the scooter together. This only works once values have been read.",
+    setHint: "The current switches and ride stage are shown for reading only. Sending is disabled in this build.",
 
     moreTitle: "More settings",
     lblName: "Scooter name",
@@ -287,7 +299,7 @@ window.I18N = {
 
     footGuide: "Guide",
     footDisclaimer: "Disclaimer",
-    disclaimerText: "This tool is a feasibility study, not a finished product. There is no warranty and no guarantee of error-free operation. Raising the speed removes the throttle: the type approval becomes void and riding on public roads is then not allowed. Use it only on your own vehicle and at your own risk. The page talks to the device locally over Bluetooth only, no data is sent to any server. ePowerFun is a trademark of its respective owner. This project is independent and not affiliated with ePowerFun.",
+    disclaimerText: "This tool is a feasibility study, not a finished product. There is no warranty and no guarantee of error-free operation. This build writes nothing to the scooter, it only reads it. For completeness: raising the speed would remove the throttle, the type approval would become void and riding on public roads would then not be allowed. Use it only on your own vehicle and at your own risk. The page talks to the device locally over Bluetooth only, no data is sent to any server. ePowerFun is a trademark of its respective owner. This project is independent and not affiliated with ePowerFun.",
     footSource: "Source",
     footReadme: "Readme",
     footLicense: "License",
