@@ -112,7 +112,7 @@ window.I18N = {
     hPwdProt: "Legt fest, ob beim Verbinden ein Passwort verlangt wird.",
     hNfc: "NFC-Freischaltung ein oder aus. Mit Karten löschen entfernst du gespeicherte Karten.",
     hBlinker: "Akustisches Signal beim Blinken ein oder aus.",
-    hDrive: "Interner Antriebsmodus des Controllers (AT+DRIVEMODE). Modellabhängig, oft die Wahl zwischen Ein- gegen Zweimotor. Nur ändern, wenn du weisst, was dein Modell erwartet.",
+    hDrive: "Interner Antriebsmodus des Controllers (AT+DRIVEMODE). Modellabhängig, oft die Wahl zwischen Ein- gegen Zweimotor. Nur ändern, wenn du weißt, was dein Modell erwartet.",
     advField: "Parameter",
     advValue: "Wert",
 
@@ -141,7 +141,7 @@ window.I18N = {
 
     footGuide: "Anleitung",
     footDisclaimer: "Haftungsausschluss",
-    disclaimerText: "Dieses Werkzeug ist eine Machbarkeitsstudie, kein fertiges Produkt. Es gibt keine Gewährleistung und keine Garantie für fehlerfreien Betrieb. Dieser Build schreibt nichts auf den Scooter, er liest ihn nur aus. Der Vollständigkeit halber: Ein Anheben der Geschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschliesslich am eigenen Fahrzeug und auf eigenes Risiko. Die Seite spricht nur lokal per Bluetooth mit dem Gerät, es werden keine Daten an einen Server gesendet. ePowerFun ist eine Marke des jeweiligen Inhabers. Dieses Projekt ist unabhängig und nicht mit ePowerFun verbunden.",
+    disclaimerText: "Dieses Werkzeug ist eine Machbarkeitsstudie, kein fertiges Produkt. Es gibt keine Gewährleistung und keine Garantie für fehlerfreien Betrieb. Dieser Build schreibt nichts auf den Scooter, er liest ihn nur aus. Der Vollständigkeit halber: Ein Anheben der Geschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschließlich am eigenen Fahrzeug und auf eigenes Risiko. Die Seite spricht nur lokal per Bluetooth mit dem Gerät, es werden keine Daten an einen Server gesendet. ePowerFun ist eine Marke des jeweiligen Inhabers. Dieses Projekt ist unabhängig und nicht mit ePowerFun verbunden.",
     footSource: "Quellcode",
     footReadme: "Readme",
     footLicense: "Lizenz",
