@@ -144,6 +144,19 @@ const EPF = (function () {
     return buildRwParam(0x20, value, head);
   }
 
+  // Write one 16-bit word to a register via the RW frame 0x17 (2.3 / 2.12).
+  function buildSetRegWord(register, word, head) {
+    const w = Math.max(0, Math.min(0xffff, word | 0));
+    const value = Uint8Array.from([(w >> 8) & 0xff, w & 0xff]);
+    return buildRwParam(register, value, head);
+  }
+
+  // Read one register: sendCommand(0x03, addr, 1) -> 01 03 <addrHi> <addrLo> 00 01 + CRC (2.12).
+  function buildReadReg(register, head) { return buildRead(OP.READ_PARAMETER, register, 1, head); }
+
+  // Current raw 16-bit word of a register in the collected params buffer (byte offset = register*2, 2.10).
+  function advRegWord(paramsBuf, register) { return u16BE(paramsBuf, register * 2); }
+
   function buildControl(command) {
     return Uint8Array.from([HEAD_TRAN, command & 0xff, (~command) & 0xff, 0, 0, 0, 0, END_TRAN]);
   }
@@ -358,7 +371,8 @@ const EPF = (function () {
     UUID, OP, HEAD_ESC, HEAD_TRAN, END_TRAN, HEAD_MONITOR,
     crc16Modbus, appendCrc16, toHex,
     buildRead, READ, buildMonitor, encodeSwitchByte, buildBaseParamsFrame,
-    buildRwParam, buildSetMaxSpeed, buildControl, sendTran, sendPack, sendStopTran, buildKeep, AT,
+    buildRwParam, buildSetMaxSpeed, buildSetRegWord, buildReadReg, advRegWord,
+    buildControl, sendTran, sendPack, sendStopTran, buildKeep, AT,
     parseCmd, parseData, parseMonitor, parseBaseParams, parseFullAdvParams, decodeSwitches,
   };
 })();

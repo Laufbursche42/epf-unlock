@@ -1,10 +1,10 @@
 # Laufbursche EPF unlock
 
-A static web page that reads EPF (ePowerFun) e-scooters over Web Bluetooth. Connect to your scooter
-and, straight from the browser, read the live telemetry, read every controller parameter and setting,
-read the device info and follow the raw protocol log. This is a **read-out build**: it writes nothing
-to the scooter. Nothing to install: no app store, no signing, no developer account. It runs in
-**Bluefy** on iOS and in **Chrome** on Android or desktop.
+A static web page that reads and writes EPF (ePowerFun) e-scooters over Web Bluetooth. Connect to your
+scooter and, straight from the browser, read the live telemetry, read and write every documented
+controller parameter and setting, read the device info and follow the raw protocol log. Nothing to
+install: no app store, no signing, no developer account. It runs in **Bluefy** on iOS and in **Chrome**
+on Android or desktop.
 
 > **This is a feasibility study.** It exists to show what the ePowerFun Bluetooth protocol makes
 > possible, not to be a finished product. The protocol was reconstructed from the official app
@@ -12,9 +12,10 @@ to the scooter. Nothing to install: no app store, no signing, no developer accou
 > same BLE core. Error-free operation is not promised and there is no warranty of any kind. Whatever
 > you do with it, you do at your own risk.
 >
-> **No tuning in this build.** A write path for speed limits and settings is documented from the app,
-> but it is not confirmed on any real device, so every tuning control is shown for context yet
-> permanently disabled. See [What it does](#what-it-does).
+> **The write frames are sent for real.** There is no BLE encryption. Raising the speed limit to
+> 22 km/h is what the vendor app itself does; values above ~22 km/h depend on a controller firmware
+> clamp and may not take effect on a real device (hardware-unconfirmed). See
+> [What it does](#what-it-does).
 
 **Open the web app: [laufbursche42.github.io/epf-unlock](https://laufbursche42.github.io/epf-unlock/)**
 
@@ -51,36 +52,41 @@ and shows a dash where a value has not been read yet, rather than a made-up defa
 
 ## What it does
 
-This build reads the scooter. Every read path below is active; every write path is documented but
-disabled (see [No tuning in this build](#no-tuning-in-this-build)).
-
-Active (read):
+Every control below sends the documented frame for real once connected. Risky writes (speed limits,
+register 0x20, password, NFC, any register-write escape hatch) ask for confirmation first.
 
 - **Connect** by picking the scooter in the browser dialog, with an optional plain-text password
-  (`AT+PWD`). The password is an authentication precondition for reading a protected device, so this
-  gate stays active.
+  (`AT+PWD`, remembered per device on request).
 - **Read the telemetry** the scooter sends back (speed, battery, voltage, current, power, controller
   and motor temperature, trip and total kilometers, ride stage, immobilizer state and the fault code),
   kept fresh by a keep-frame heartbeat.
-- **Read the current settings**: ride stage, headlight, ambient light, cruise control, boot mode
+- **Read and write the settings**: ride stage, headlight, ambient light, cruise control, boot mode
   (zero-start), unit and immobilizer state, plus the four ride-stage speed limits (Eco, Comfort,
-  Sport, cruise) and the factory limiter read-back. They are shown for viewing only.
-- **Read the advanced controller parameters** (max currents, undervoltage protection, PWM frequency,
-  motor pole pairs, throttle and brake response and more).
+  Sport, cruise) via the Monitor frame (`0xAB`), and the factory limiter (register `0x20`,
+  km/h times 10) via the RW frame (`0x17`).
+- **Read and write the advanced controller parameters** (max currents, undervoltage protection, PWM
+  frequency, motor pole pairs, throttle and brake response and more). Each is shown decoded and written
+  as a raw 16-bit word via the RW frame `0x17`. Only register `0x20` has a documented scaling; every
+  other write value is a raw word (scaling unconfirmed). A generic "write any register" escape hatch
+  reaches every address.
+- **Read and set** name (`AT+NAME`), password (`AT+PWDM`), password requirement (`AT+TYPE`), NFC
+  (`AT+NFC` / `AT+DEL`), turn-signal sound (`AT+TLVOICEOFF`) and drive type (`AT+DRIVEMODE`).
 - **Read the device info** with the query buttons: controller model, hardware, bootloader, firmware,
   unique code, serial number, device type (`AT+DEVICE?`), UID (`AT+UID`) and password status
   (`AT+TYPE?`).
-- **Follow the raw protocol log**: every frame is logged as plain hex, blue for sent and brown for
-  received, newest at the bottom. Copy or clear the log, or list the GATT services with Diagnostics.
+- **Raw console**: a free hex / `AT` send field, the raw protocol log (every frame as plain hex, blue
+  for sent and brown for received, newest at the bottom, anonymized by default for public sharing) with
+  copy / clear / save, and a GATT service dump via Diagnostics.
 
-### No tuning in this build
+### Honest framing
 
-The write frames for speed limits, switches, name, password, NFC, drive type and trip reset are
-documented from the app bytecode, but none is confirmed on a real ePowerFun device and several
-preconditions are still open (custom-head bytes, a firmware clamp above ~22 km/h, factory password
-requirement, write-ack parsing, the exact register-0x20 send sequence). In line with the standing rule
-"device unknowns stay gated, never invented", every tuning control is shown for context but permanently
-disabled. Nothing is written to the scooter.
+There is no BLE encryption; the frames are plain text secured only by a CRC-16/MODBUS. Raising the
+Sport limit and register `0x20` to 22 km/h is exactly what the vendor app itself does, so that path is
+proven. Values above ~22 km/h depend on a controller firmware clamp: a foreign report (ZydDash) sees
+the firmware clamp the same controller type to 0.6 - 22.0 km/h regardless of the app-declared max of
+60, so higher values may be silently ignored on a real device (hardware-unconfirmed). The advanced
+parameters other than `0x20` are written as raw words because their write scaling is not documented -
+the tool never invents a scaling.
 
 ## Encryption
 
@@ -117,10 +123,12 @@ GUIDE.de.md, GUIDE.en.md  - the step-by-step guide
   the connect sequence: send the password if given, read controller info, serial and the parameter
   block, then query NFC, turn-signal sound, password status and drive type. A keep frame keeps the
   telemetry flowing.
-- The read frames (register reads, the control and keep frames and the `AT+...` queries) are written
-  to the data or command characteristic; notifications are decoded per frame type and rendered, and
-  every frame is logged raw as hex. The write builders stay in `protocol.js` to document the protocol,
-  but the UI never calls them in this read-out build.
+- The read frames (register reads, the control and keep frames and the `AT+...` queries) and the write
+  frames (the Monitor/speed-limit frame, the RW register write `0x17` for register `0x20` and the
+  advanced parameters, and the `AT+...` setters) are written to the data or command characteristic;
+  notifications are decoded per frame type and rendered, and every frame is logged raw as hex. Each
+  write control calls the matching builder in `protocol.js`; a register write is preceded by a
+  `sendTran` pulse and followed by a read-back, exactly as the app does.
 
 ## Development
 
@@ -141,10 +149,9 @@ gives you the full diagnostic transcript to paste in.
 
 ## Legal
 
-This build does not write to the scooter, so it changes nothing on the vehicle. For background: raising
-the maximum speed would lift the factory limit, the operating permit (Betriebserlaubnis, ABE) would
-then be void and riding the scooter in public traffic would no longer be allowed. Use it on your own
-vehicle only. Everything you do with this page is at your own risk.
+This tool writes to the scooter. Raising the maximum speed lifts the factory limit, the operating
+permit (Betriebserlaubnis, ABE) then becomes void and riding the scooter in public traffic is no longer
+allowed. Use it on your own vehicle only. Everything you do with this page is at your own risk.
 
 ## License
 

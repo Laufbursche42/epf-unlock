@@ -94,8 +94,31 @@ label { color: var(--label); font-size: 12px; text-transform: uppercase; letter-
   border-radius: 8px; padding: 9px 11px; margin: 0; }
 .warn b { color: var(--warn-strong); }
 
-/* Gated-control reason note under a tuning or settings card. */
+/* Disclaimer / reason note under a tuning or settings card. */
 .reason { color: var(--warn); }
+
+/* Log options row - taken 1:1 from lb-tool-web (public-log toggle). */
+.log-opts { display: flex; flex-direction: column; gap: 4px; }
+.log-opt { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 5px; margin: 0 0 4px; }
+.log-opt .help-btn { margin: 0 5px; }
+.log-opt input[type="checkbox"] { -webkit-appearance: checkbox; appearance: auto; width: 16px; height: 16px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; flex: 0 0 auto; }
+.log-opt span { color: var(--label); font-size: 12px; }
+
+/* Remember-password convenience toggle in the connection card. */
+.check-row { display: flex; align-items: center; gap: 8px; color: var(--label); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.check-row input[type="checkbox"] { -webkit-appearance: checkbox; appearance: auto; width: 16px; height: 16px; margin: 0; flex: 0 0 auto; }
+
+/* Advanced parameter rows: decoded value (read) plus a raw-word write field. */
+.sub-h { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 700; }
+#adv-rows { display: flex; flex-direction: column; gap: 10px; }
+.adv-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.adv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.adv-lbl { color: var(--label); font-size: 13px; font-weight: 600; }
+.adv-reg { color: var(--muted); font-family: var(--mono); font-size: 10.5px; white-space: nowrap; }
+.adv-val { color: var(--value); font-family: var(--mono); font-size: 11.5px; word-break: break-word; }
+.adv-write { display: grid; grid-template-columns: minmax(0, 1fr) 9rem; gap: 8px; }
+.adv-write input, .adv-write button { width: 100%; flex: none; }
+
 pre#log { margin: 0; background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 10px;
   font-family: var(--mono); font-size: 11.5px; color: var(--muted); max-height: 220px; overflow: auto;
   white-space: pre-wrap; word-break: break-word; overscroll-behavior: contain; }

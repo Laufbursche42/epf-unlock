@@ -1,15 +1,16 @@
 # Anleitung: Laufbursche EPF unlock
 
-> **Nur-Lesen-Build.** Dieses Werkzeug liest den EPF-Scooter (ePowerFun) aus: Live-Telemetrie,
-> Parameter und Geräte-Info. Es schreibt nichts auf den Scooter. Alle Tuning-Bedienelemente werden
-> zwar angezeigt, sind aber deaktiviert, weil der Schreibweg zwar aus der App dokumentiert, aber an
-> keinem echten Gerät bestätigt ist.
+> **Die Schreib-Frames werden wirklich gesendet.** Dieses Werkzeug liest den EPF-Scooter (ePowerFun)
+> aus (Live-Telemetrie, Parameter, Geräte-Info) und schreibt die dokumentierten Einstellungen. Es gibt
+> keine BLE-Verschlüsselung. Das Tempolimit auf 22 km/h anzuheben ist genau das, was die Hersteller-App
+> selbst tut; Werte über etwa 22 km/h hängen von einer Firmware-Klemme im Controller ab und werden am
+> echten Gerät womöglich nicht übernommen (hardwareseitig unbestätigt). Riskante Schreibvorgänge fragen
+> vorher nach. Nur am eigenen Scooter und auf eigenes Risiko.
 
 ## 1. Was du brauchst
 
 Alles passiert im Browser über Web Bluetooth: verbinden, Live-Werte lesen, Parameter und Einstellungen
-anschauen, Geräte-Info abfragen. Dieser Build schreibt nichts auf den Scooter. Es gibt nichts zu
-installieren. Gebraucht wird:
+lesen und schreiben, Geräte-Info abfragen. Es gibt nichts zu installieren. Gebraucht wird:
 
 **Ein Browser, der Web Bluetooth kann.**
 
@@ -29,7 +30,8 @@ liefert jedes Feld, die Seite zeigt nur, was sie am Fahrzeug wirklich lesen kann
 1. Öffne die Seite in Bluefy oder Chrome.
 2. Schalte den E-Scooter ein. Er muss ein paar Meter neben dem Handy bleiben.
 3. Falls dein E-Scooter ein Passwort verlangt, trage es oben im Feld Passwort ein. Sonst lass es leer.
-   Das Passwort wird nur gebraucht, damit ein geschützter Scooter sich auslesen lässt.
+   Das Passwort wird nur gebraucht, damit ein geschützter Scooter sich lesen und schreiben lässt. Mit
+   dem Haken "Passwort für dieses Gerät merken" bleibt es lokal für das nächste Mal gespeichert.
 4. Tippe auf **Verbinden** und wähle deinen E-Scooter in der Auswahl des Browsers.
 5. Beobachte die Statusanzeige oben rechts: erst `connecting`, dann `linking`, dann `connected`.
 
@@ -54,38 +56,51 @@ Strich.
 
 ---
 
-## 4. Einstellungen und Tempolimits (nur lesen)
+## 4. Einstellungen und Tempolimits
 
 Die Karte **Tempo sperren / entsperren** sowie die Karte **Einstellungen** zeigen die aktuell vom
-Scooter gelesenen Werte: die vier Fahrstufen-Limits (Eco, Comfort, Sport, Tempomat), den Rücklesewert
-der Werksdrossel sowie die Schalter (Frontlicht, Ambientelicht, Tempomat, Anfahrmodus, Einheit,
-Wegfahrsperre) und die Fahrstufe.
-
-Diese Werte werden nur angezeigt. Jedes Bedienelement, das auf den Scooter schreiben würde, ist in
-diesem Build ausgegraut, der Grund steht unter jeder Karte und hinter dem `?` in jeder Zeile.
+Scooter gelesenen Werte und lassen sie ändern: die vier Fahrstufen-Limits (Eco, Comfort, Sport,
+Tempomat) sowie die Schalter (Frontlicht, Ambientelicht, Tempomat, Anfahrmodus, Einheit, Wegfahrsperre)
+und die Fahrstufe gehen über den Monitor-Frame (`0xAB`) raus; die Werksdrossel (Register `0x20`, km/h
+mal 10) geht über den RW-Frame (`0x17`) raus. Jedes hat einen eigenen Senden-Knopf, die riskanten
+(Tempolimits, Werksdrossel, Wegfahrsperre) fragen vorher nach. Der aktuelle Schalter-Zustand wird beim
+Schreiben unverändert übernommen, damit sich nur das eine Feld ändert, das du anfasst. Beachte die
+Firmware-Klemme: die Hersteller-App geht selbst bis 22 km/h, Werte darüber werden vom Controller
+womöglich ignoriert (das `?` in jeder Zeile erklärt es).
 
 ---
 
 ## 5. Erweiterte Parameter
 
 Die Karte **Erweiterte Parameter** zeigt Motor- sowie Regelungsparameter aus dem Parameterblock,
-dekodiert mit den im Code dokumentierten Skalierungen. Sie sind nur lesbar.
+dekodiert mit den im Code dokumentierten Skalierungen, und lässt jeden als rohes 16-Bit-Wort über den
+RW-Frame (`0x17`) zurückschreiben. Die Register, die die Hersteller-App selbst schreibt (Gasannahme
+`0x09`, Bremse `0x0A`, Tempolimit `0x20`), sind mit "app" markiert. Nur Register `0x20` hat eine
+dokumentierte Skalierung (km/h mal 10); jeder andere Wert ist ein rohes Wort, weil seine
+Schreib-Skalierung nicht dokumentiert ist - das Tool erfindet keine. Darunter erreicht "Beliebiges
+Register schreiben" als Escape-Hatch jede Adresse: Adresse und rohes Wort eintragen, der Rest wird zum
+RW-Frame gebaut. Ein falscher Wert kann den Controller stören, deshalb wird vorher nachgefragt.
 
 ---
 
-## 6. Geräte-Info
+## 6. Geräte-Info und weitere Einstellungen
 
 Die Karte **Geräte-Info** füllt sich mit Controller-Modell, Hardware, Bootloader, Firmware, UniqueCode
 und Seriennummer. Die Abfrage-Knöpfe lesen auf Wunsch mehr: Gerätetyp (`AT+DEVICE?`), UID (`AT+UID`)
-und Passwort-Status (`AT+TYPE?`). Das sind Lesezugriffe, deshalb bleiben sie aktiv.
+und Passwort-Status (`AT+TYPE?`). Die Karte **Weitere Einstellungen** setzt Name (`AT+NAME`), ein neues
+Passwort (`AT+PWDM`), die Passwortpflicht (`AT+TYPE`), NFC (`AT+NFC`, plus Karten löschen `AT+DEL`),
+Blinkerton (`AT+TLVOICEOFF`) und Antriebstyp (`AT+DRIVEMODE`).
 
 ---
 
-## 7. Log und Ergebnis melden
+## 7. Log, Rohkonsole und Ergebnis melden
 
-Der Log unten zeigt jeden Frame als rohes Hex, blau gesendet und braun empfangen, das Neueste unten.
-Mit **Log kopieren** bekommst du den ganzen Mitschnitt als Text, mit **Log leeren** wird er geleert,
-mit **Diagnose** listest du alle Bluetooth-Geräte plus die GATT-Dienste auf.
+Der Log unten zeigt jeden Frame als rohes Hex, blau gesendet und braun empfangen, das Neueste unten. Er
+ist standardmäßig anonymisiert (Bluetooth-Adressen, Seriennummern, Passwörter und rohe Geräte-IDs
+werden geschwärzt), damit du ihn gefahrlos teilen kannst; den Haken "Log anonymisieren" nur zum lokalen
+Debuggen entfernen. Mit **Log kopieren**, **Log leeren** und **Als .txt speichern** exportierst du den
+Mitschnitt, mit dem Frei-senden-Feld schickst du eigene Hex-Bytes oder einen `AT`-Befehl, mit
+**Diagnose** listest du alle Bluetooth-Geräte plus die GATT-Dienste auf.
 
 Probleme oder Befunde bitte als [GitHub-Issue](https://github.com/Laufbursche42/epf-unlock/issues)
 melden. Häng den kopierten Log an, dann sieht man genau, was gesendet sowie empfangen wurde.
@@ -102,7 +117,6 @@ Zugangsschutz ist das optionale Klartext-Passwort (`AT+PWD`).
 
 ## 9. Recht
 
-Dieser Build schreibt nichts auf den Scooter, er ändert also nichts am Fahrzeug. Zum Hintergrund: Ein
-Anheben der Höchstgeschwindigkeit würde die Drossel aufheben, die ABE erlischt und der Betrieb auf
-öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschließlich am eigenen Gerät und auf eigenes
-Risiko.
+Dieses Werkzeug schreibt auf den Scooter. Ein Anheben der Höchstgeschwindigkeit hebt die Drossel auf,
+die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschließlich
+am eigenen Gerät und auf eigenes Risiko.
