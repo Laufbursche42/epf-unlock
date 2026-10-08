@@ -9,6 +9,8 @@ or Edge on Android or desktop, and in Bluefy on iOS. Nothing leaves your device.
 > clamp and may not take effect on a real device (hardware-unconfirmed). Risky writes ask for
 > confirmation first. Your own scooter only, at your own risk.
 
+> **Important for error reports:** switch on the **Diagnostic log** at the bottom of the page *before* you connect to the scooter. Only then is the full connection handshake captured - and those are exactly the lines we need in a [ticket](https://github.com/Laufbursche42/Laufbursche42/issues) to reproduce a problem.
+
 ## Requirements
 
 - Chrome or Edge on Android or desktop, or Bluefy on iOS, served over HTTPS or `http://localhost`,
@@ -75,3 +77,6 @@ are redacted) so you can share it safely; untick "Anonymize log" only for local 
 and Save as .txt export the log, the free-send field sends your own hex bytes or an `AT` command, and
 Diagnostics lists all Bluetooth devices and their GATT services. Report what you see on a real scooter
 with the copied log attached.
+
+## Contribute
+Want to find out if and how tuning works on your scooter? Test this tool on your own vehicle and open a ticket on [GitHub](https://github.com/Laufbursche42/Laufbursche42/issues) - with your model and what worked (or did not). That way we figure out together what is possible on which model.

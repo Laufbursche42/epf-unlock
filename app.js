@@ -1,6 +1,6 @@
 'use strict';
 
-const BUILD = 'v28';
+const BUILD = 'v29';
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
@@ -34,7 +34,6 @@ const state = {
 };
 
 // ---- log + redaction (copied verbatim from lb-tool-web: one central filter; copy/save reuse it) ----
-function ts() { return new Date().toISOString().slice(11, 19); }
 function redact(text) {
   let s = String(text);
   if (state.deviceId) s = s.split(state.deviceId).join('[redacted-id]');
@@ -55,7 +54,7 @@ function anonymize(s) {
   return redact(s.replace(/\x01[^\x01]*\x01/g, 'XX').replace(/\x01/g, ''));
 }
 function log(msg, cls) {
-  const raw = '[' + ts() + '] ' + msg;   // stored raw (with sentinels); anonymized on the way out
+  const raw = '[' + new Date().toTimeString().slice(0, 8) + '] ' + msg;   // local [HH:MM:SS]; stored raw (with sentinels), anonymized on the way out
   state.logBuffer.push({ raw: raw, cls: cls || '' });
   const pre = $('log');
   if (pre) {
@@ -98,14 +97,39 @@ function saveLog() {
     log(t('logSaved'), 'log-ok');
   } catch (e) { log('save failed: ' + e.message, 'log-err'); }
 }
+// load-time protocol self-test (mirrors inokim FRAME_OK): the max-speed RW builder must reproduce the
+// known-good frame proven from the decompiled app (set 25 km/h -> register 0x20, value 250 = 0x00FA,
+// full frame 01 17 00 20 00 01 00 20 00 01 02 00 FA D2 E7), AND every built frame must re-validate:
+// EPF.crc16Modbus over the body must equal the CRC16-MODBUS trailer the builder appended. Not a
+// tautology - the vector pins exact bytes, the round-trip re-derives the checksum independently.
+const FRAME_OK = (function () {
+  try {
+    const eq = (a, b) => a.length === b.length && a.every((v, i) => (v & 0xff) === (b[i] & 0xff));
+    // known-good vector: bytes copied verbatim from the decompiled app's RW-parameter write path
+    const KNOWN_25KMH = [0x01, 0x17, 0x00, 0x20, 0x00, 0x01, 0x00, 0x20, 0x00, 0x01, 0x02, 0x00, 0xFA, 0xD2, 0xE7];
+    const vector = eq(Array.from(EPF.buildSetMaxSpeed(25)), KNOWN_25KMH);
+    // round-trip: recompute CRC16-MODBUS over each built frame's body; it must equal the appended trailer
+    const crcOk = (f) => {
+      f = Array.from(f);
+      const crc = EPF.crc16Modbus(f.slice(0, f.length - 2), 0, f.length - 2);
+      return f[f.length - 2] === (crc & 0xff) && f[f.length - 1] === ((crc >> 8) & 0xff);
+    };
+    const roundTrip = crcOk(EPF.buildSetMaxSpeed(25)) && crcOk(EPF.buildSetRegWord(0x20, 250)) &&
+      crcOk(EPF.READ.limitedSpeed()) && crcOk(EPF.buildReadReg(0x20));
+    return vector && roundTrip;
+  } catch (e) { return false; }
+})();
+
 function logDiagnosticHeader() {
   const nav = (typeof navigator !== 'undefined') ? navigator : {};
   log('=== epf-unlock diagnostic ===');
   log('build: ' + BUILD);
   log('time: ' + new Date().toISOString());
-  log('userAgent: ' + (nav.userAgent || '(unknown)'));
+  log('userAgent: ' + (nav.userAgent || '?'));
+  log('platform: ' + (nav.platform || '?'));
   log('webBluetooth: ' + (nav.bluetooth ? 'yes' : 'no'));
-  log('=============================');
+  log('protocol self-test: ' + (FRAME_OK ? 'OK' : 'FAILED'));
+  log('================================');
 }
 
 let lang = 'de';
@@ -232,6 +256,7 @@ function openDocFile(file, anchor, titleKey) {
 }
 const HELP = {
   disclaimer: ['footDisclaimer', 'disclaimerText'],
+  live: ['liveTitle', 'liveHint'], batt: ['help_batt_t', 'help_batt_b'], more: ['moreTitle', 'setHint'],
   adv: ['advTitle', 'helpAdv'], reg: ['regTitle', 'helpReg'], publiclog: ['publicLogTitle', 'publicLogHelp'], diaglog: ['diagLogTitle', 'diagLogHelp'],
 
   hLs: ['lsTitle', 'hLs'], hMaxRow: ['lblMax', 'hMaxRow'],
@@ -304,10 +329,10 @@ const CONN_CTRL_IDS = [
   'btn-qdevice', 'btn-quid', 'btn-qtype',
 ];
 function setControlsEnabled(on) {
+  // telemetry + settings cards hidden until connected; on load only intro/connect/log show
+  ['live-card', 'batt-card', 'more-card', 'raw-card'].forEach(id => { const el = $(id); if (el) el.hidden = !on; });
   CONN_CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; });
   setAdvRowsEnabled(on);
-  // Hide-until-connected: everything between the connect card and the log stays hidden until linked.
-  document.querySelectorAll('.conn-only').forEach(el => { el.hidden = !on; });
 }
 function setAdvRowsEnabled(on) {
   const box = $('adv-rows'); if (!box) return;
@@ -758,7 +783,7 @@ function wireControls() {
   $('btn-copy-log').addEventListener('click', copyLog);
   $('btn-clear-log').addEventListener('click', clearLog);
   $('btn-save-log').addEventListener('click', saveLog);
-  $('btn-diag').addEventListener('click', diagnostic);
+  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openHelp('disclaimer'); }); }
 
   const pubCb = $('public-log');
   if (pubCb) {
@@ -782,19 +807,6 @@ function wireControls() {
     rem.addEventListener('change', () => LS.set(LS_REMEMBERPWD, rem.checked ? '1' : '0'));
   }
 }
-async function diagnostic() {
-  logDiagnosticHeader();
-  if (!navigator.bluetooth) { log('no web bluetooth', 'log-err'); return; }
-  try {
-    const dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [EPF.UUID.DATA_SERVICE, EPF.UUID.CMD_SERVICE, EPF.UUID.OTA_SERVICE, EPF.UUID.DEVINFO, '00001800-0000-1000-8000-00805f9b34fb'] });
-    log('diag device: ' + (dev.name || '(no name)') + ' (id redacted)');
-    const srv = await dev.gatt.connect();
-    const svcs = await srv.getPrimaryServices();
-    for (const s of svcs) { log('  service ' + s.uuid); try { for (const c of await s.getCharacteristics()) log('    char ' + c.uuid); } catch (e) {} }
-    dev.gatt.disconnect();
-  } catch (e) { log('diag failed: ' + e.message, 'log-err'); }
-}
-
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
   try { const l = localStorage.getItem(LS_LANG); if (l === 'de' || l === 'en') lang = l; } catch (e) {}
@@ -806,6 +818,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setControlsEnabled(false);
   setStatus('disconnected');
   logDiagnosticHeader();
+  if (!FRAME_OK) log('protocol self-test FAILED: frame builder/CRC mismatch - do not trust writes', 'log-err');
   if (!navigator.bluetooth) log('navigator.bluetooth missing, use chrome/edge over https or localhost', 'log-err');
   log('ready');
 });

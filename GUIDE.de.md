@@ -7,6 +7,8 @@
 > echten Gerät womöglich nicht übernommen (hardwareseitig unbestätigt). Riskante Schreibvorgänge fragen
 > vorher nach. Nur am eigenen Scooter und auf eigenes Risiko.
 
+> **Wichtig für Fehler-Reports:** Schalte unten auf der Seite den **Diagnose-Log** ein, *bevor* du dich mit dem Scooter verbindest. Nur dann wird der komplette Verbindungsaufbau mitgeschnitten - und genau diese Zeilen brauchen wir in einem [Ticket](https://github.com/Laufbursche42/Laufbursche42/issues), um ein Problem nachzuvollziehen.
+
 ## 1. Was du brauchst
 
 Alles passiert im Browser über Web Bluetooth: verbinden, Live-Werte lesen, Parameter und Einstellungen
@@ -120,3 +122,6 @@ Zugangsschutz ist das optionale Klartext-Passwort (`AT+PWD`).
 Dieses Werkzeug schreibt auf den Scooter. Ein Anheben der Höchstgeschwindigkeit hebt die Drossel auf,
 die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nutzung ausschließlich
 am eigenen Gerät und auf eigenes Risiko.
+
+## Mithelfen
+Willst du herausfinden, ob und wie Tuning bei deinem Scooter geht? Teste dieses Tool an deinem eigenen Fahrzeug und öffne ein Ticket auf [GitHub](https://github.com/Laufbursche42/Laufbursche42/issues) - mit deinem Modell und was funktioniert hat (oder nicht). So finden wir gemeinsam heraus, was bei welchem Modell möglich ist.
