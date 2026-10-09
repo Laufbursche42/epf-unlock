@@ -1,6 +1,6 @@
 'use strict';
 
-const BUILD = 'v29';
+const BUILD = 'v30';
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
