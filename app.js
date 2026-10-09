@@ -1,6 +1,6 @@
 'use strict';
 
-const BUILD = 'v30';
+const BUILD = 'v31';
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
@@ -792,6 +792,7 @@ function wireControls() {
     pubCb.addEventListener('change', () => {
       state.publicLog = pubCb.checked;
       LS.set(LS_PUBLICLOG, pubCb.checked ? '1' : '0');
+      log('public-log: ' + (pubCb.checked ? 'on (anonymizing device name/id)' : 'off'));
       renderLog();
     });
   }
@@ -799,8 +800,14 @@ function wireControls() {
   if (diagCb) {
     state.diag = LS.get(LS_DIAGLOG, '0') === '1';
     diagCb.checked = state.diag;
-    diagCb.addEventListener('change', () => { state.diag = diagCb.checked; LS.set(LS_DIAGLOG, diagCb.checked ? '1' : '0'); });
+    diagCb.addEventListener('change', () => {
+      state.diag = diagCb.checked;
+      LS.set(LS_DIAGLOG, diagCb.checked ? '1' : '0');
+      log('diag-log: ' + (diagCb.checked ? 'on' : 'off'));
+    });
   }
+  const saCb = $('showall');
+  if (saCb) saCb.addEventListener('change', () => { log('show-all-devices: ' + (saCb.checked ? 'on' : 'off')); });
   const rem = $('remember-pwd');
   if (rem) {
     rem.checked = LS.get(LS_REMEMBERPWD, '0') === '1';
