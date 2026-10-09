@@ -1,6 +1,6 @@
 'use strict';
 
-const BUILD = 'v31';
+const BUILD = 'v32';
 const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
@@ -178,6 +178,7 @@ const DOC_TITLES = {
   'PRIVACY.de.md': 'footPrivacy', 'PRIVACY.md': 'footPrivacy',
   'LICENSE.de.md': 'footLicense', 'LICENSE.md': 'footLicense',
   'TRADEMARKS.de.md': 'footTrademarks', 'TRADEMARKS.md': 'footTrademarks',
+  'DISCLAIMER.de.md': 'footDisclaimer', 'DISCLAIMER.md': 'footDisclaimer',
   'README.md': 'footReadme',
 };
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -255,7 +256,6 @@ function openDocFile(file, anchor, titleKey) {
     });
 }
 const HELP = {
-  disclaimer: ['footDisclaimer', 'disclaimerText'],
   live: ['liveTitle', 'liveHint'], batt: ['help_batt_t', 'help_batt_b'], more: ['moreTitle', 'setHint'],
   adv: ['advTitle', 'helpAdv'], reg: ['regTitle', 'helpReg'], publiclog: ['publicLogTitle', 'publicLogHelp'], diaglog: ['diagLogTitle', 'diagLogHelp'],
 
@@ -279,7 +279,7 @@ function wireDocViewer() {
   document.addEventListener('click', e => {
     if (!e.target.closest) return;
     const disc = e.target.closest('[data-open-disclaimer]');
-    if (disc) { e.preventDefault(); openHelp('disclaimer'); return; }
+    if (disc) { e.preventDefault(); openDocFile(docFile('DISCLAIMER'), '', 'footDisclaimer'); return; }
     const hb = e.target.closest('[data-help]');
     if (hb) { e.preventDefault(); openHelp(hb.getAttribute('data-help')); return; }
     const a = e.target.closest('[data-doc], [data-docfile]');
@@ -783,7 +783,7 @@ function wireControls() {
   $('btn-copy-log').addEventListener('click', copyLog);
   $('btn-clear-log').addEventListener('click', clearLog);
   $('btn-save-log').addEventListener('click', saveLog);
-  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openHelp('disclaimer'); }); }
+  { const b = $('link-disclaimer'); if (b) b.addEventListener('click', e => { e.preventDefault(); openDocFile(docFile('DISCLAIMER'), '', 'footDisclaimer'); }); }
 
   const pubCb = $('public-log');
   if (pubCb) {

@@ -201,7 +201,6 @@ window.I18N = {
 
     footGuide: "Anleitung",
     footDisclaimer: "Haftungsausschluss",
-    disclaimerText: "Dieses Werkzeug ist eine Machbarkeitsstudie, kein fertiges Produkt. Es gibt keine Gewährleistung und keine Garantie für fehlerfreien Betrieb. Das Tool sendet die dokumentierten Schreib-Frames wirklich; es gibt keine BLE-Verschlüsselung. Das Anheben der Geschwindigkeit hebt die Drossel auf, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Werte über etwa 22 km/h hängen von einer Firmware-Klemme des Controllers ab und sind am echten Gerät unbestätigt. Nutzung ausschließlich am eigenen Fahrzeug und auf eigenes Risiko. Die Seite spricht nur lokal per Bluetooth mit dem Gerät, es werden keine Daten an einen Server gesendet. ePowerFun ist eine Marke des jeweiligen Inhabers. Dieses Projekt ist unabhängig und nicht mit ePowerFun verbunden.",
     footSource: "Quellcode",
     footIssue: "Fehler melden",
     footReadme: "Readme",
@@ -420,7 +419,6 @@ window.I18N = {
 
     footGuide: "Guide",
     footDisclaimer: "Disclaimer",
-    disclaimerText: "This tool is a feasibility study, not a finished product. There is no warranty and no guarantee of error-free operation. The tool sends the documented write frames for real; there is no BLE encryption. Raising the speed removes the throttle, the type approval becomes void and riding on public roads would then not be allowed. Values above about 22 km/h depend on a controller firmware clamp and are unconfirmed on a real device. Use it only on your own vehicle and at your own risk. The page talks to the device locally over Bluetooth only, no data is sent to any server. ePowerFun is a trademark of its respective owner. This project is independent and not affiliated with ePowerFun.",
     footSource: "Source",
     footIssue: "Report an issue",
     footReadme: "Readme",
