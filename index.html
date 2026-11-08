@@ -8,13 +8,13 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=37">
+<link rel="stylesheet" href="styles.css?v=38">
 <!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "1f2a3915448b4b68b4380423f2be4b09"}'></script><!-- scan-ok: Cloudflare Web Analytics beacon (token starts 1f2a39 ends 4b09); cookieless aggregate page metrics, see PRIVACY -->
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Laufbursche <span data-t="brandSub"></span></h1>
+    <h1>Laufbursche <span data-t="brandSub">ePowerFun Tool</span></h1>
     <div class="head-right">
       <span class="status" id="status" data-state="disconnected">disconnected</span>
       <div class="head-tools">
@@ -27,202 +27,202 @@
     </div>
   </header>
 
-  <p class="hint infobox" data-t="infoBannerHtml"></p>
+  <p class="hint infobox" data-t="infoBannerHtml">Tuning ist mit dieser Seite nicht möglich.</p>
 
   <div class="card">
-    <h2 data-t="s1Title"></h2>
-    <p class="hint" data-t="sub"></p>
-    <p class="hint" data-t="startHintGuide"></p>
-    <p class="warn" data-t="expWarn"></p>
-    <p class="hint" data-t="ownDevice"></p>
+    <h2 data-t="s1Title">So fängst du an</h2>
+    <p class="hint" data-t="sub">Den EPF-Scooter (ePowerFun) live über Web Bluetooth auslesen und die dokumentierten Einstellungen schreiben. Läuft in Chrome oder Edge auf Android beziehungsweise Desktop. Nichts verlässt dein Gerät.</p>
+    <p class="hint" data-t="startHintGuide">Neu hier? In der <a href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide">Anleitung</a> steht jeder Schritt.</p>
+    <p class="warn" data-t="expWarn">Machbarkeitsstudie: Diese Seite zeigt, was das Bluetooth-Protokoll eines ePowerFun-E-Scooters technisch möglich macht. Sie ist kein fertiges Produkt. Es gibt keine Gewährleistung. Alles was du hier tust, tust du auf eigenes Risiko. <a href="#" data-open-disclaimer>Haftungsausschluss lesen</a>.</p>
+    <p class="hint" data-t="ownDevice">Ein Anheben der Höchstgeschwindigkeit hebt die Drossel auf, die ABE erlischt und der Betrieb auf öffentlichen Wegen wäre dann nicht erlaubt. Nur am eigenen Scooter.</p>
   </div>
 
   <div class="card">
-    <h2 data-t="s2Title"></h2>
+    <h2 data-t="s2Title">Verbindung</h2>
     <div class="log-opt">
-      <span data-t="showallLabel"></span>
+      <span data-t="showallLabel">Alle Geräte zeigen (wenn deins nicht auftaucht)</span>
       <input type="checkbox" id="showall">
     </div>
     <div class="set-row">
-      <label data-t="pwdLabel"></label>
+      <label data-t="pwdLabel">Passwort (falls gesetzt)</label>
       <input id="pwd-in" type="password" autocomplete="off">
     </div>
-    <label class="check-row"><input type="checkbox" id="remember-pwd"><span data-t="rememberPwd"></span></label>
-    <p class="hint" data-t="pwdHint"></p>
+    <label class="check-row"><input type="checkbox" id="remember-pwd"><span data-t="rememberPwd">Passwort für dieses Gerät merken (lokal)</span></label>
+    <p class="hint" data-t="pwdHint">Wird als AT+PWD im Klartext gesendet. Leer lassen, wenn der Scooter kein Passwort verlangt.</p>
     <div class="btns">
       <button class="primary span2" id="btn-conn" data-act="connect"></button>
     </div>
     <p class="hint" id="devinfo"></p>
-    <p class="hint" data-t="controlsHint"></p>
+    <p class="hint" data-t="controlsHint">Nach dem Verbinden liest die App Controller-Info, Seriennummer und Parameter und hält die Live-Werte per Keep-Frame aktuell. Web Bluetooth geht nur über Chrome oder Edge, über HTTPS oder http://localhost.</p>
   </div>
 
   <div class="card" id="live-card" hidden>
-    <div class="card-head"><h2 data-t="liveTitle"></h2><button type="button" class="help-btn" data-help="live" aria-label="Info">?</button></div>
+    <div class="card-head"><h2 data-t="liveTitle">Live-Werte vom Scooter</h2><button type="button" class="help-btn" data-help="live" aria-label="Info">?</button></div>
     <div class="grid">
-      <div class="tile"><b id="t-speed">-</b><small data-t="tileSpeed"></small></div>
-      <div class="tile"><b id="t-mode">-</b><small data-t="tileMode"></small></div>
-      <div class="tile"><b id="t-lock">-</b><small data-t="tileLock"></small></div>
-      <div class="tile"><b id="t-curr">-</b><small data-t="tileCurr"></small></div>
-      <div class="tile"><b id="t-power">-</b><small data-t="tilePower"></small></div>
-      <div class="tile"><b id="t-esctemp">-</b><small data-t="tileEscTemp"></small></div>
-      <div class="tile"><b id="t-motortemp">-</b><small data-t="tileMotorTemp"></small></div>
-      <div class="tile"><b id="t-trip">-</b><small data-t="tileTrip"></small></div>
-      <div class="tile"><b id="t-total">-</b><small data-t="tileTotal"></small></div>
-      <div class="tile"><b id="t-fw">-</b><small data-t="tileFw"></small></div>
+      <div class="tile"><b id="t-speed">-</b><small data-t="tileSpeed">Geschwindigkeit</small></div>
+      <div class="tile"><b id="t-mode">-</b><small data-t="tileMode">Fahrmodus</small></div>
+      <div class="tile"><b id="t-lock">-</b><small data-t="tileLock">Wegfahrsperre</small></div>
+      <div class="tile"><b id="t-curr">-</b><small data-t="tileCurr">Strom</small></div>
+      <div class="tile"><b id="t-power">-</b><small data-t="tilePower">Leistung</small></div>
+      <div class="tile"><b id="t-esctemp">-</b><small data-t="tileEscTemp">Controller-Temp</small></div>
+      <div class="tile"><b id="t-motortemp">-</b><small data-t="tileMotorTemp">Motor-Temp</small></div>
+      <div class="tile"><b id="t-trip">-</b><small data-t="tileTrip">Tageskilometer</small></div>
+      <div class="tile"><b id="t-total">-</b><small data-t="tileTotal">Gesamtkilometer</small></div>
+      <div class="tile"><b id="t-fw">-</b><small data-t="tileFw">Firmware</small></div>
     </div>
-    <p class="hint" data-t="liveHint"></p>
+    <p class="hint" data-t="liveHint">Die Werte kommen live vom Scooter. Nicht jedes Modell liefert jedes Feld, dann steht dort ein Strich. Die rohen Meldungen stehen zusätzlich als Hex im Log.</p>
   </div>
 
   <div class="card" id="batt-card" hidden>
-    <div class="card-head"><h2 data-t="battTitle"></h2><button type="button" class="help-btn" data-help="batt" aria-label="Info">?</button></div>
+    <div class="card-head"><h2 data-t="battTitle">Akku-Telemetrie</h2><button type="button" class="help-btn" data-help="batt" aria-label="Info">?</button></div>
     <div class="grid">
-      <div class="tile"><b id="t-batt">-</b><small data-t="tileBatt"></small></div>
-      <div class="tile"><b id="t-volt">-</b><small data-t="tileVolt"></small></div>
+      <div class="tile"><b id="t-batt">-</b><small data-t="tileBatt">Akku</small></div>
+      <div class="tile"><b id="t-volt">-</b><small data-t="tileVolt">Spannung</small></div>
     </div>
-    <p class="hint" data-t="battHint"></p>
+    <p class="hint" data-t="battHint">Nur was der Roller meldet. Ein Strich bedeutet: dieser Wert kam noch nicht.</p>
   </div>
 
   <div class="card" id="more-card" hidden>
-    <div class="card-head"><h2 data-t="moreTitle"></h2><button type="button" class="help-btn" data-help="more" aria-label="Info">?</button></div>
+    <div class="card-head"><h2 data-t="moreTitle">Weitere Einstellungen</h2><button type="button" class="help-btn" data-help="more" aria-label="Info">?</button></div>
 
-    <h3 class="set-group" data-t="setgrpSpeed"></h3>
-    <p class="warn" data-t="lsWarn"></p>
+    <h3 class="set-group" data-t="setgrpSpeed">Tempo und Freischaltung</h3>
+    <p class="warn" data-t="lsWarn"><b>Achtung.</b> Entsperren hebt die Werksdrossel an und greift direkt in den Controller ein. Auf öffentlichen Wegen erlischt dadurch in der Regel die Betriebserlaubnis. Nur am eigenen Scooter.</p>
     <p class="hint" id="ls-state"></p>
-    <div class="set-row"><div class="lblrow"><label data-t="lblMax"></label><button type="button" class="help-btn" data-help="hMaxRow" aria-label="Info">?</button></div><input id="max-in" type="number" min="6" max="60" step="1"></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblMax">Höchstgeschwindigkeit (km/h)</label><button type="button" class="help-btn" data-help="hMaxRow" aria-label="Info">?</button></div><input id="max-in" type="number" min="6" max="60" step="1"></div>
     <div class="btns">
       <button class="primary span2" id="btn-lock-toggle"></button>
     </div>
-    <p class="hint" data-t="lsGearsHint"></p>
+    <p class="hint" data-t="lsGearsHint">Darunter jede Fahrstufe einzeln. Werte eintragen und mit Fahrstufen schreiben senden. Hinweis: Manche Controller übernehmen nur die Stufe, in der der Scooter gerade steht - dann vorher am Scooter in die gewünschte Stufe schalten.</p>
     <div class="speed-grid">
-      <div class="set-row"><div class="lblrow"><label data-t="lblSport"></label><button type="button" class="help-btn" data-help="hSport" aria-label="Info">?</button></div><input id="lm3-in" type="number" min="0" max="255" step="1"></div>
-      <div class="set-row"><div class="lblrow"><label data-t="lblComfort"></label><button type="button" class="help-btn" data-help="hComfort" aria-label="Info">?</button></div><input id="lm2-in" type="number" min="0" max="255" step="1"></div>
-      <div class="set-row"><div class="lblrow"><label data-t="lblEco"></label><button type="button" class="help-btn" data-help="hEco" aria-label="Info">?</button></div><input id="lm1-in" type="number" min="0" max="255" step="1"></div>
-      <div class="set-row"><div class="lblrow"><label data-t="lblCruise"></label><button type="button" class="help-btn" data-help="hCruise" aria-label="Info">?</button></div><input id="lc-in" type="number" min="0" max="255" step="1"></div>
+      <div class="set-row"><div class="lblrow"><label data-t="lblSport">Sport-Modus (km/h)</label><button type="button" class="help-btn" data-help="hSport" aria-label="Info">?</button></div><input id="lm3-in" type="number" min="0" max="255" step="1"></div>
+      <div class="set-row"><div class="lblrow"><label data-t="lblComfort">Comfort-Modus (km/h)</label><button type="button" class="help-btn" data-help="hComfort" aria-label="Info">?</button></div><input id="lm2-in" type="number" min="0" max="255" step="1"></div>
+      <div class="set-row"><div class="lblrow"><label data-t="lblEco">Eco-Modus (km/h)</label><button type="button" class="help-btn" data-help="hEco" aria-label="Info">?</button></div><input id="lm1-in" type="number" min="0" max="255" step="1"></div>
+      <div class="set-row"><div class="lblrow"><label data-t="lblCruise">Tempomat (km/h)</label><button type="button" class="help-btn" data-help="hCruise" aria-label="Info">?</button></div><input id="lc-in" type="number" min="0" max="255" step="1"></div>
     </div>
     <div class="btns">
-      <button class="primary span2" id="btn-write-gears" data-t="btnWriteGears"></button>
+      <button class="primary span2" id="btn-write-gears" data-t="btnWriteGears">Fahrstufen schreiben</button>
     </div>
-    <p class="hint" data-t="lsHint"></p>
-    <p class="hint reason" data-t="reasonTune"></p>
+    <p class="hint" data-t="lsHint">Entsperren hebt die Geschwindigkeit des Sport-Gangs an (Monitor-Frame) und setzt zusätzlich das Register 0x20. Sperren setzt beides zurück auf 22 km/h.</p>
+    <p class="hint reason" data-t="reasonTune">Dieses Tool sendet den dokumentierten Schreib-Frame wirklich. Es gibt keine BLE-Verschlüsselung. Bis 22 km/h ist der Weg belegt (das tut die App selbst); Werte darüber hängen von einer Firmware-Klemme des Controllers ab und werden am echten Gerät womöglich stillschweigend verworfen (hardwareseitig unbestätigt).</p>
 
-    <h3 class="set-group" data-t="setgrpGeneral"></h3>
+    <h3 class="set-group" data-t="setgrpGeneral">Allgemein</h3>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblGear"></label><button type="button" class="help-btn" data-help="hGear" aria-label="Info">?</button></div>
-      <select id="gear-in"><option value="">-</option><option value="0" data-t="gear1"></option><option value="1" data-t="gear2"></option><option value="2" data-t="gear3"></option></select>
-      <button id="btn-gear" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblGear">Fahrstufe</label><button type="button" class="help-btn" data-help="hGear" aria-label="Info">?</button></div>
+      <select id="gear-in"><option value="">-</option><option value="0" data-t="gear1">1 (Eco)</option><option value="1" data-t="gear2">2 (Comfort)</option><option value="2" data-t="gear3">3 (Sport)</option></select>
+      <button id="btn-gear" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblHead"></label><button type="button" class="help-btn" data-help="hHead" aria-label="Info">?</button></div>
-      <select id="head-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select>
-      <button id="btn-head" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblHead">Frontlicht</label><button type="button" class="help-btn" data-help="hHead" aria-label="Info">?</button></div>
+      <select id="head-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select>
+      <button id="btn-head" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblAtmo"></label><button type="button" class="help-btn" data-help="hAtmo" aria-label="Info">?</button></div>
-      <select id="atmo-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select>
-      <button id="btn-atmo" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblAtmo">Ambientelicht</label><button type="button" class="help-btn" data-help="hAtmo" aria-label="Info">?</button></div>
+      <select id="atmo-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select>
+      <button id="btn-atmo" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblCruiseSw"></label><button type="button" class="help-btn" data-help="hCruiseSw" aria-label="Info">?</button></div>
-      <select id="cruise-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select>
-      <button id="btn-cruise" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblCruiseSw">Tempomat</label><button type="button" class="help-btn" data-help="hCruiseSw" aria-label="Info">?</button></div>
+      <select id="cruise-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select>
+      <button id="btn-cruise" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblBoot"></label><button type="button" class="help-btn" data-help="hBoot" aria-label="Info">?</button></div>
-      <select id="boot-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select>
-      <button id="btn-boot" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblBoot">Anfahrmodus (Zero-Start)</label><button type="button" class="help-btn" data-help="hBoot" aria-label="Info">?</button></div>
+      <select id="boot-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select>
+      <button id="btn-boot" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblUnit"></label><button type="button" class="help-btn" data-help="hUnit" aria-label="Info">?</button></div>
-      <select id="unit-in"><option value="">-</option><option value="0" data-t="optKm"></option><option value="1" data-t="optMi"></option></select>
-      <button id="btn-unit" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblUnit">Einheit</label><button type="button" class="help-btn" data-help="hUnit" aria-label="Info">?</button></div>
+      <select id="unit-in"><option value="">-</option><option value="0" data-t="optKm">km/h (metrisch)</option><option value="1" data-t="optMi">mph (imperial)</option></select>
+      <button id="btn-unit" data-t="btnSend">Senden</button>
     </div>
     <div class="set-row">
-      <div class="lblrow"><label data-t="lblLock"></label><button type="button" class="help-btn" data-help="hLock" aria-label="Info">?</button></div>
-      <select id="lock-in"><option value="">-</option><option value="0" data-t="optOff"></option><option value="1" data-t="optOn"></option></select>
-      <button id="btn-lock" data-t="btnSend"></button>
+      <div class="lblrow"><label data-t="lblLock">Wegfahrsperre (Diebstahlschutz)</label><button type="button" class="help-btn" data-help="hLock" aria-label="Info">?</button></div>
+      <select id="lock-in"><option value="">-</option><option value="0" data-t="optOff">Aus</option><option value="1" data-t="optOn">An</option></select>
+      <button id="btn-lock" data-t="btnSend">Senden</button>
     </div>
-    <p class="hint" data-t="setHint"></p>
-    <div class="set-row"><div class="lblrow"><label data-t="lblName"></label><button type="button" class="help-btn" data-help="hName" aria-label="Info">?</button></div><input id="name-in" type="text" maxlength="20"><button id="btn-name" data-t="btnSend"></button></div>
-    <div class="set-row"><div class="lblrow"><label data-t="lblNewPwd"></label><button type="button" class="help-btn" data-help="hNewPwd" aria-label="Info">?</button></div><input id="newpwd-in" type="password"><button id="btn-setpwd" data-t="btnSend"></button></div>
-    <div class="set-row"><div class="lblrow"><label data-t="lblPwdProt"></label><button type="button" class="help-btn" data-help="hPwdProt" aria-label="Info">?</button></div><select id="pwdprot-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select><button id="btn-pwdprot" data-t="btnSend"></button></div>
-    <div class="set-row"><div class="lblrow"><label data-t="lblNfc"></label><button type="button" class="help-btn" data-help="hNfc" aria-label="Info">?</button></div><select id="nfc-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select><button id="btn-nfc" data-t="btnSend"></button></div>
-    <div class="set-row"><div class="lblrow"><label data-t="lblBlinker"></label><button type="button" class="help-btn" data-help="hBlinker" aria-label="Info">?</button></div><select id="blinker-in"><option value="">-</option><option value="1" data-t="optOn"></option><option value="0" data-t="optOff"></option></select><button id="btn-blinker" data-t="btnSend"></button></div>
-    <div class="set-row"><div class="lblrow"><label data-t="lblDrive"></label><button type="button" class="help-btn" data-help="hDrive" aria-label="Info">?</button></div><input id="drive-in" type="number" min="0" max="9" step="1" value=""><button id="btn-drive" data-t="btnSend"></button></div>
+    <p class="hint" data-t="setHint">Die Schalter und die Fahrstufe werden gelesen und lassen sich einzeln per Monitor-Frame (0xAB) schreiben. Der aktuelle Zustand wird beim Schreiben unverändert übernommen, damit sich nur das eine Feld ändert.</p>
+    <div class="set-row"><div class="lblrow"><label data-t="lblName">Rollername</label><button type="button" class="help-btn" data-help="hName" aria-label="Info">?</button></div><input id="name-in" type="text" maxlength="20"><button id="btn-name" data-t="btnSend">Senden</button></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblNewPwd">Neues Passwort</label><button type="button" class="help-btn" data-help="hNewPwd" aria-label="Info">?</button></div><input id="newpwd-in" type="password"><button id="btn-setpwd" data-t="btnSend">Senden</button></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblPwdProt">Passwortschutz</label><button type="button" class="help-btn" data-help="hPwdProt" aria-label="Info">?</button></div><select id="pwdprot-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select><button id="btn-pwdprot" data-t="btnSend">Senden</button></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblNfc">NFC</label><button type="button" class="help-btn" data-help="hNfc" aria-label="Info">?</button></div><select id="nfc-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select><button id="btn-nfc" data-t="btnSend">Senden</button></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblBlinker">Blinkerton</label><button type="button" class="help-btn" data-help="hBlinker" aria-label="Info">?</button></div><select id="blinker-in"><option value="">-</option><option value="1" data-t="optOn">An</option><option value="0" data-t="optOff">Aus</option></select><button id="btn-blinker" data-t="btnSend">Senden</button></div>
+    <div class="set-row"><div class="lblrow"><label data-t="lblDrive">Antriebstyp</label><button type="button" class="help-btn" data-help="hDrive" aria-label="Info">?</button></div><input id="drive-in" type="number" min="0" max="9" step="1" value=""><button id="btn-drive" data-t="btnSend">Senden</button></div>
     <div class="btns">
-      <button id="btn-delnfc" data-t="btnDelNfc"></button>
-      <button id="btn-resettrip" data-t="btnResetTrip"></button>
+      <button id="btn-delnfc" data-t="btnDelNfc">Karten löschen</button>
+      <button id="btn-resettrip" data-t="btnResetTrip">Trip zurücksetzen</button>
     </div>
   </div>
 
   <div class="card" id="raw-card" hidden>
-    <div class="card-head"><h2 data-t="advTitle"></h2><button type="button" class="help-btn" data-help="adv" aria-label="Info">?</button></div>
-    <p class="warn" data-t="advWriteWarn"></p>
+    <div class="card-head"><h2 data-t="advTitle">Erweiterte Parameter</h2><button type="button" class="help-btn" data-help="adv" aria-label="Info">?</button></div>
+    <p class="warn" data-t="advWriteWarn"><b>Achtung.</b> Diese Register steuern den Motorcontroller direkt. Ein falscher Wert kann den Controller stören. Nur Register 0x20 hat eine dokumentierte Skalierung (km/h mal 10), alle anderen Schreibwerte sind rohe 16-Bit-Wörter (Skalierung unbestätigt). Am echten Gerät prüfen.</p>
     <div id="adv-rows"></div>
-    <p class="hint" data-t="advHint"></p>
+    <p class="hint" data-t="advHint">Jeder Parameter wird dekodiert angezeigt (lesen) und lässt sich als rohes 16-Bit-Wort über den RW-Frame 0x17 schreiben. Die von der App selbst geschriebenen Register (Gasannahme 0x09, Bremse 0x0A, Tempolimit 0x20) sind mit 'app' markiert. Die Werte erscheinen nach dem Verbinden.</p>
 
     <hr class="sep">
-    <div class="card-head"><h3 class="sub-h" data-t="regTitle"></h3><button type="button" class="help-btn" data-help="reg" aria-label="Info">?</button></div>
-    <p class="hint" data-t="regHint"></p>
-    <div class="set-row"><label data-t="lblRegAddr"></label><input id="reg-addr-in" type="text" placeholder="0x20"></div>
-    <div class="set-row"><label data-t="lblRegVal"></label><input id="reg-val-in" type="text" placeholder="220"></div>
+    <div class="card-head"><h3 class="sub-h" data-t="regTitle">Beliebiges Register schreiben</h3><button type="button" class="help-btn" data-help="reg" aria-label="Info">?</button></div>
+    <p class="hint" data-t="regHint">Frei wählbare Registeradresse plus rohes 16-Bit-Wort über den RW-Frame 0x17 (2.3 / 2.12). Adresse und Wert dezimal oder als 0x-Hex. Vor dem Schreiben wird das Register kurz per sendTran-Puls angestoßen und danach zurückgelesen.</p>
+    <div class="set-row"><label data-t="lblRegAddr">Registeradresse</label><input id="reg-addr-in" type="text" placeholder="0x20"></div>
+    <div class="set-row"><label data-t="lblRegVal">Wert (rohes 16-Bit-Wort)</label><input id="reg-val-in" type="text" placeholder="220"></div>
     <div class="btns">
-      <button id="btn-reg-read" data-t="btnRegRead"></button>
-      <button id="btn-reg-write" data-t="btnRegWrite"></button>
+      <button id="btn-reg-read" data-t="btnRegRead">Register lesen</button>
+      <button id="btn-reg-write" data-t="btnRegWrite">Register schreiben</button>
     </div>
-    <p class="hint reason" data-t="regReason"></p>
+    <p class="hint reason" data-t="regReason">Escape-Hatch für Experimente. Es gibt keine BLE-Verschlüsselung. Nur Register 0x20 hat eine dokumentierte Skalierung; alle anderen Adressen und Werte sind roh und am echten Gerät unbestätigt. Ein falscher Wert kann den Controller stören.</p>
 
     <hr class="sep">
-    <h3 class="sub-h" data-t="infoTitle"></h3>
+    <h3 class="sub-h" data-t="infoTitle">Geräte-Info</h3>
     <div class="doc-table"><table><tbody id="info-body"></tbody></table></div>
     <div class="btns">
-      <button id="btn-qdevice" data-t="btnQDevice"></button>
-      <button id="btn-quid" data-t="btnQUid"></button>
-      <button id="btn-qtype" class="span2" data-t="btnQType"></button>
+      <button id="btn-qdevice" data-t="btnQDevice">Typ abfragen</button>
+      <button id="btn-quid" data-t="btnQUid">UID abfragen</button>
+      <button id="btn-qtype" class="span2" data-t="btnQType">Passwort-Status</button>
     </div>
 
     <hr class="sep">
     <div class="set-row">
-      <label data-t="lblRawSend"></label>
+      <label data-t="lblRawSend">Frei senden (Hex / AT)</label>
       <input id="raw-in" type="text" placeholder="AB 00 0A ... / AT+DEVICE?">
-      <button id="btn-raw-send" data-t="btnRawSend"></button>
+      <button id="btn-raw-send" data-t="btnRawSend">Senden</button>
     </div>
-    <p class="hint" data-t="rawSendHint"></p>
+    <p class="hint" data-t="rawSendHint">Ein 'AT...'-Befehl geht an den Kommando-Kanal (F2F1), alles andere wird als rohe Hex-Bytes an den Daten-Kanal (F1F1) gesendet. Es wird keine CRC angehängt - schick den vollständigen Frame selbst.</p>
   </div>
 
   <div class="card">
-    <h2 data-t="s6Title"></h2>
+    <h2 data-t="s6Title">Protokoll-Log</h2>
     <div class="log-opts">
       <div class="log-opt">
-        <span data-t="publicLogLabel"></span>
+        <span data-t="publicLogLabel">Öffentliches Log (Gerätename/ID anonymisieren)</span>
         <input type="checkbox" id="public-log" checked>
         <button type="button" class="help-btn" data-help="publiclog" aria-label="Info">?</button>
       </div>
       <div class="log-opt">
-        <span data-t="diagLogLabel"></span>
+        <span data-t="diagLogLabel">Diagnose-Log</span>
         <input type="checkbox" id="diag-log">
         <button type="button" class="help-btn" data-help="diaglog" aria-label="Info">?</button>
       </div>
     </div>
     <div class="btns">
-      <button type="button" id="btn-copy-log" data-t="btnCopyLog"></button>
-      <button type="button" id="btn-clear-log" data-t="btnClearLog"></button>
-      <button type="button" id="btn-save-log" class="span2" data-t="btnSaveLog"></button>
+      <button type="button" id="btn-copy-log" data-t="btnCopyLog">Kopieren</button>
+      <button type="button" id="btn-clear-log" data-t="btnClearLog">Leeren</button>
+      <button type="button" id="btn-save-log" class="span2" data-t="btnSaveLog">Speichern</button>
     </div>
     <pre id="log"></pre>
-    <p class="hint"><span class="log-tx" data-t="logTxLegend"></span>, <span class="log-rx" data-t="logRxLegend"></span></p>
+    <p class="hint"><span class="log-tx" data-t="logTxLegend">gesendet</span>, <span class="log-rx" data-t="logRxLegend">empfangen</span></p>
   </div>
 
   <footer class="foot">
     <span class="foot-links">
-      <a id="link-guide" href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide"></a>
-      <a href="https://github.com/Laufbursche42/epf-unlock" target="_blank" rel="noopener" data-t="footSource"></a>
-      <a id="link-readme" href="README.md" data-doc="README" data-t="footReadme"></a>
-      <a id="link-disclaimer" href="#" data-t="footDisclaimer"></a>
-      <a id="link-license" href="LICENSE.de.md" data-doc="LICENSE" data-t="footLicense"></a>
-      <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy"></a>
-      <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks"></a>
+      <a id="link-guide" href="GUIDE.de.md" data-doc="GUIDE" data-t="footGuide">Anleitung</a>
+      <a href="https://github.com/Laufbursche42/epf-unlock" target="_blank" rel="noopener" data-t="footSource">Quellcode</a>
+      <a id="link-readme" href="README.md" data-doc="README" data-t="footReadme">Readme</a>
+      <a id="link-disclaimer" href="#" data-t="footDisclaimer">Haftungsausschluss</a>
+      <a id="link-license" href="LICENSE.de.md" data-doc="LICENSE" data-t="footLicense">Lizenz</a>
+      <a id="link-privacy" href="PRIVACY.de.md" data-doc="PRIVACY" data-t="footPrivacy">Datenschutz</a>
+      <a id="link-trademarks" href="TRADEMARKS.de.md" data-doc="TRADEMARKS" data-t="footTrademarks">Marken</a>
     </span>
-    <span class="foot-links"><span class="ver" id="build-ver"></span><a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener" data-t="footIssue"></a></span>
+    <span class="foot-links"><span class="ver" id="build-ver"></span><a href="https://github.com/Laufbursche42/Laufbursche42/issues" target="_blank" rel="noopener" data-t="footIssue">Fehler melden</a></span>
     <a class="foot-copy" href="https://laufbursche42.github.io/Laufbursche42/" target="_blank" rel="noopener">Copyright (c) 2026 Laufbursche</a>
   </footer>
 </div>
@@ -234,7 +234,7 @@
   </div>
   <div class="doc-body" id="doc-body"></div>
   <div class="doc-foot">
-    <button type="button" id="doc-close" data-t="docClose"></button>
+    <button type="button" id="doc-close" data-t="docClose">Schließen</button>
   </div>
 </dialog>
 
@@ -245,25 +245,25 @@
   </div>
   <div class="doc-body"><p id="help-body"></p></div>
   <div class="doc-foot">
-    <button type="button" id="help-close" data-t="docClose"></button>
+    <button type="button" id="help-close" data-t="docClose">Schließen</button>
   </div>
 </dialog>
 
 <dialog id="confirm" aria-labelledby="confirm-title">
   <div class="doc-head">
-    <h3 id="confirm-title" data-t="confirmTitle"></h3>
+    <h3 id="confirm-title" data-t="confirmTitle">Wirklich schreiben?</h3>
     <button type="button" id="confirm-x">&times;</button>
   </div>
   <div class="doc-body"><p id="confirm-msg"></p></div>
   <div class="doc-foot">
-    <button type="button" id="confirm-no" data-t="confirmNo"></button>
-    <button type="button" class="primary" id="confirm-ok" data-t="confirmYes"></button>
+    <button type="button" id="confirm-no" data-t="confirmNo">Abbrechen</button>
+    <button type="button" class="primary" id="confirm-ok" data-t="confirmYes">Ja, schreiben</button>
   </div>
 </dialog>
 
-<script src="report-footer.js?v=37"></script>
-<script src="i18n.js?v=37"></script>
-<script src="protocol.js?v=37"></script>
-<script src="app.js?v=37"></script>
+<script src="report-footer.js?v=38"></script>
+<script src="i18n.js?v=38"></script>
+<script src="protocol.js?v=38"></script>
+<script src="app.js?v=38"></script>
 </body>
 </html>
