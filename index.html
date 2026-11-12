@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="styles.css?v=38">
+<link rel="stylesheet" href="styles.css?v=39">
 <!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "1f2a3915448b4b68b4380423f2be4b09"}'></script><!-- scan-ok: Cloudflare Web Analytics beacon (token starts 1f2a39 ends 4b09); cookieless aggregate page metrics, see PRIVACY -->
 </head>
 <body>
@@ -189,6 +189,30 @@
     <p class="hint" data-t="rawSendHint">Ein 'AT...'-Befehl geht an den Kommando-Kanal (F2F1), alles andere wird als rohe Hex-Bytes an den Daten-Kanal (F1F1) gesendet. Es wird keine CRC angehängt - schick den vollständigen Frame selbst.</p>
   </div>
 
+  <div class="card" id="ota-card" hidden>
+    <h2 data-t="otaTitle">BLE-Firmware auslesen (experimentell)</h2>
+    <p class="warn" data-t="otaWarn"><b>Experimentell, read-only.</b> Dieser Bereich liest nur Speicher aus (GET_STR_BASE, READ_MEM), er schreibt, löscht oder flasht nichts. Er spricht den OTA-Bootloader des BLE-Moduls an (Dienst 02F0...FE00). Antwortet dein Modul nicht, passiert nichts. Danach den Scooter einmal aus- und wieder einschalten.</p>
+    <p class="hint" data-t="otaIntro">Ziel: die Firmware des BLE-Funkmoduls (nicht des Motor-Controllers) auslesen. Sie wäre Klartext und könnte die BLE-Befehlstabelle plus das UART-Protokoll zum Controller enthalten. Der OTA-Start läuft exakt wie beim Flashen über GET_STR_BASE.</p>
+    <div class="btns">
+      <button class="primary span2" id="btn-ota-start" data-t="btnOtaStart">OTA-Session starten (GET_STR_BASE)</button>
+    </div>
+    <div class="set-row"><label data-t="lblOtaAddr">Adresse (hex)</label><input id="ota-addr" type="text" value="0x08000000"></div>
+    <div class="set-row"><label data-t="lblOtaLen">Länge (Bytes, 1-256)</label><input id="ota-len" type="number" min="1" max="256" step="1" value="64"></div>
+    <div class="btns">
+      <button id="btn-ota-readmem" class="span2" data-t="btnOtaReadMem">READ_MEM einmal lesen</button>
+    </div>
+    <div class="set-row"><label data-t="lblOtaTotal">Dump-Gesamtlänge (Bytes)</label><input id="ota-total" type="number" min="16" max="1048576" step="16" value="4096"></div>
+    <div class="set-row"><label data-t="lblOtaBlock">Blockgröße (Bytes, max 256)</label><input id="ota-block" type="number" min="16" max="256" step="16" value="128"></div>
+    <div class="btns">
+      <button id="btn-ota-dump" data-t="btnOtaDump">Auto-Dump starten</button>
+      <button id="btn-ota-stop" data-t="btnOtaStop">Stopp</button>
+      <button id="btn-ota-save" class="span2" data-t="btnOtaSave" disabled>Dump als .bin speichern</button>
+    </div>
+    <p class="hint" id="ota-progress"></p>
+    <div class="doc-table"><table><thead><tr><th data-t="otaThTime">Zeit</th><th data-t="otaThResp">OTA-Antwort (hex)</th></tr></thead><tbody id="ota-body"></tbody></table></div>
+    <p class="hint" data-t="otaHint">Antwortet der Bootloader nicht auf READ_MEM, ist dieser Lesebefehl an deinem Modul gesperrt - kein Fehler, nur nicht verfügbar. Bei Antworten: Dump speichern und zurücksenden.</p>
+  </div>
+
   <div class="card">
     <h2 data-t="s6Title">Protokoll-Log</h2>
     <div class="log-opts">
@@ -261,9 +285,9 @@
   </div>
 </dialog>
 
-<script src="report-footer.js?v=38"></script>
-<script src="i18n.js?v=38"></script>
-<script src="protocol.js?v=38"></script>
-<script src="app.js?v=38"></script>
+<script src="report-footer.js?v=39"></script>
+<script src="i18n.js?v=39"></script>
+<script src="protocol.js?v=39"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

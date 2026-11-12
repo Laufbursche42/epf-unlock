@@ -1,7 +1,7 @@
 'use strict';
 
-const BUILD = 'v38';
-const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max';
+const BUILD = 'v39';
+const LS_THEME = 'epf_theme', LS_LANG = 'epf_lang', LS_PUBLICLOG = 'epf_publiclog', LS_DIAGLOG = 'epf_diaglog', LS_REMEMBERPWD = 'epf_rememberpwd', LS_MAX = 'epf_max', LS_LASTDEV = 'epf_lastdev';
 const skPwd = (id) => 'epf_pwd_' + id;
 const LS = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
@@ -13,6 +13,8 @@ const $ = (id) => document.getElementById(id);
 const state = {
   device: null, server: null, deviceId: null,
   dataTx: null, dataRx: null, cmdTx: null, cmdRx: null,
+  otaSvc: null, otaTx: null, otaRx: null,
+  otaLog: [], otaWaiter: null, otaDumpStop: false, otaDumpRunning: false,
   connected: false, pollTimer: null,
   thousandUnits: false,
   escInfoBuf: new Uint8Array(96),
@@ -348,16 +350,39 @@ const CONN_CTRL_IDS = [
   'reg-addr-in', 'reg-val-in', 'btn-reg-read', 'btn-reg-write',
   'raw-in', 'btn-raw-send',
   'btn-qdevice', 'btn-quid', 'btn-qtype',
+  'btn-ota-start', 'ota-addr', 'ota-len', 'btn-ota-readmem', 'ota-total', 'ota-block', 'btn-ota-dump', 'btn-ota-stop',
 ];
 function setControlsEnabled(on) {
   // telemetry + settings cards hidden until connected; on load only intro/connect/log show
-  ['live-card', 'batt-card', 'more-card', 'raw-card'].forEach(id => { const el = $(id); if (el) el.hidden = !on; });
+  ['live-card', 'batt-card', 'more-card', 'raw-card', 'ota-card'].forEach(id => { const el = $(id); if (el) el.hidden = !on; });
   CONN_CTRL_IDS.forEach(id => { const el = $(id); if (el) el.disabled = !on; });
   setAdvRowsEnabled(on);
 }
 function setAdvRowsEnabled(on) {
   const box = $('adv-rows'); if (!box) return;
   box.querySelectorAll('input, button').forEach(el => { el.disabled = !on; });
+}
+
+// Persist the per-device password when "remember" is ticked. Called on a successful connect, not only on
+// OK+PWD:Y - a scooter without a password set never sends that, so the old pwdOk-only path saved nothing.
+function rememberPwdIfWanted() {
+  try {
+    const rem = $('remember-pwd');
+    if (!rem || !rem.checked || !state.deviceId) return;
+    const pwd = $('pwd-in') && $('pwd-in').value;
+    if (pwd) { LS.set(skPwd(state.deviceId), pwd); LS.set(LS_LASTDEV, state.deviceId); }
+  } catch (e) {}
+}
+// On load, if "remember" is on, show the last device's saved password so it visibly survives a reload
+// (Web Bluetooth cannot re-pick the device without a user gesture, so it is keyed to the last device).
+function prefillSavedPwd() {
+  try {
+    if (LS.get(LS_REMEMBERPWD, '0') !== '1') return;
+    const last = LS.get(LS_LASTDEV, '');
+    const saved = last && LS.get(skPwd(last), '');
+    const el = $('pwd-in');
+    if (saved && el && !el.value) el.value = saved;
+  } catch (e) {}
 }
 
 async function connect() {
@@ -372,7 +397,7 @@ async function connect() {
   state.device.addEventListener('gattserverdisconnected', onDisconnected);
   { const di = $('devinfo'); if (di) di.textContent = t('devPrefix') + ' ' + (state.device.name || '(no name)'); }
   // Prefill a saved per-device password (convenience) if the field is empty.
-  try { const saved = state.deviceId && LS.get(skPwd(state.deviceId)); if (saved && $('pwd-in') && !$('pwd-in').value) $('pwd-in').value = saved; } catch (e) {}
+  try { const remOn = LS.get(LS_REMEMBERPWD, '0') === '1'; const saved = remOn && state.deviceId && LS.get(skPwd(state.deviceId)); if (saved && $('pwd-in') && !$('pwd-in').value) $('pwd-in').value = saved; } catch (e) {}
   // Else prefill the app factory default 888888 (DialogManager else-branch auto-sends it); a user value always overrides.
   try { if ($('pwd-in') && !$('pwd-in').value) $('pwd-in').value = '888888'; } catch (e) {}
   log('device: ' + (state.device.name || '(no name)') + ' (id redacted)', 'log-tx');
@@ -395,6 +420,8 @@ async function connect() {
     return;
   }
   state.connected = true; setStatus('linking'); setControlsEnabled(true);
+  rememberPwdIfWanted();   // persist the password now that the link is up, not only if the scooter sends OK+PWD:Y
+  await tryAttachOta();    // optional: the BLE-SoC OTA service (02F0...) for the experimental firmware read-out
   await initSequence();
   setStatus('connected');
 }
@@ -435,6 +462,7 @@ async function readWithTran(frame, label) {
 function onDisconnected() {
   log('disconnected', 'log-err'); stopPoll();
   state.connected = false; state.monitorSeen = false; state.baseParamsSeen = false; state.uiPrefilled = false; state.monitor = null;
+  state.otaSvc = state.otaTx = state.otaRx = null; state.otaDumpStop = true;
   setControlsEnabled(false); resetReadFields(); setStatus('disconnected');
 }
 function resetReadFields() {
@@ -470,6 +498,124 @@ async function writeCmd(bytes, label, sensitive) {
     log('TX ' + (label ? label + ' ' : '') + shown, 'log-tx');
   } catch (e) { log('cmd write failed: ' + e.message, 'log-err'); }
 }
+// ---- experimental: read the BLE module (SoC) firmware over the OTA service ----------------------
+// The OTA service 02F0...FE00 is the BLE-SoC bootloader (Goodix-style: GET_STR_BASE/READ_MEM, no CRC).
+// This is a SEPARATE subsystem from the motor-controller firmware (which the app flashes over the data
+// channel via CMD_UPDATE_FM/0x50 and which has no read-back). READ_MEM therefore dumps the BLE module,
+// not the controller clamp - see README. Strictly read-only here: only GET_STR_BASE and READ_MEM/READ_DATA.
+async function tryAttachOta() {
+  const U = EPF.UUID;
+  try {
+    state.otaSvc = await state.server.getPrimaryService(U.OTA_SERVICE);
+    state.otaTx = await state.otaSvc.getCharacteristic(U.OTA_TX);
+    state.otaRx = await state.otaSvc.getCharacteristic(U.OTA_RX);
+    await state.otaRx.startNotifications();
+    state.otaRx.addEventListener('characteristicvaluechanged', onOtaNotify);
+    if (state.diag) log('diag: OTA service present (' + U.OTA_SERVICE + ')');
+    return true;
+  } catch (e) {
+    state.otaSvc = state.otaTx = state.otaRx = null;
+    return false;
+  }
+}
+async function writeOta(bytes, label) {
+  if (!state.otaTx) { log('ota channel not available (service 02F0... not exposed in this mode)', 'log-err'); return false; }
+  try {
+    if (state.otaTx.properties.writeWithoutResponse) await state.otaTx.writeValueWithoutResponse(bytes);
+    else await state.otaTx.writeValueWithResponse(bytes);
+    log('TX-OTA ' + (label ? label + ' ' : '') + EPF.toHex(bytes), 'log-tx');
+    return true;
+  } catch (e) { log('ota write failed: ' + e.message, 'log-err'); return false; }
+}
+function onOtaNotify(ev) {
+  const buf = new Uint8Array(ev.target.value.buffer);
+  const h = EPF.toHex(buf);
+  log('RX-OTA ' + h, 'log-rx');
+  state.otaLog.push({ hex: h, bytes: Array.from(buf) });
+  const sb = $('btn-ota-save'); if (sb) sb.disabled = state.otaLog.length === 0;
+  if (state.otaWaiter) { const w = state.otaWaiter; state.otaWaiter = null; w(buf); }
+  const body = $('ota-body');
+  if (body) {
+    const tr = document.createElement('tr');
+    const c1 = document.createElement('td'); c1.textContent = new Date().toTimeString().slice(0, 8);
+    const c2 = document.createElement('td'); c2.textContent = h;
+    tr.appendChild(c1); tr.appendChild(c2); body.insertBefore(tr, body.firstChild);
+  }
+}
+function waitOta(ms) {
+  return new Promise(res => { state.otaWaiter = res; setTimeout(() => { if (state.otaWaiter) { state.otaWaiter = null; res(null); } }, ms); });
+}
+// Heuristic: the GET_STR_BASE response format is not proven from the decompile (parsingOtaBuf is smali
+// only), so look for a plausible page-aligned 32-bit LE flash base; otherwise null (set address by hand).
+function parseOtaBase(buf) {
+  for (let i = 0; i + 4 <= buf.length; i++) {
+    const v = ((buf[i] | (buf[i + 1] << 8) | (buf[i + 2] << 16) | (buf[i + 3] << 24)) >>> 0);
+    if ((v & 0xfff) === 0 && v >= 0x00001000 && v <= 0x20000000) return v >>> 0;
+  }
+  return null;
+}
+async function otaStart() {
+  if (!state.connected) { log('not connected', 'log-err'); return false; }
+  if (!state.otaTx) {
+    const ok = await tryAttachOta();
+    if (!ok) { log('OTA service (02F0...FE00) not exposed in this mode. The BLE module may need DFU first; the data-channel 0x51 is the ESC handshake, not this path.', 'log-err'); return false; }
+  }
+  log('OTA session start (like flashing): GET_STR_BASE 01 00 00 00 00 00 00 00 00 over OTA service', 'log-tx');
+  await writeOta(EPF.buildOtaGetStrBase(), 'GET_STR_BASE');
+  const resp = await waitOta(1200);
+  if (!resp) { log('no answer to GET_STR_BASE - the OTA responder in the module did not reply', 'log-err'); return false; }
+  const base = parseOtaBase(resp);
+  if (base != null) { const a = '0x' + base.toString(16); if ($('ota-addr')) $('ota-addr').value = a; log('GET_STR_BASE answered, candidate flash base ' + a, 'log-ok'); }
+  else log('GET_STR_BASE answered, base not clearly parsed (raw in log) - set the address manually', 'log-ok');
+  return true;
+}
+async function otaReadMem() {
+  if (!state.connected) { log('not connected', 'log-err'); return; }
+  if (!state.otaTx) { const ok = await otaStart(); if (!ok) return; }
+  const addr = parseNum($('ota-addr').value) >>> 0;
+  const len = Math.max(1, Math.min(256, parseInt($('ota-len').value, 10) || 64));
+  if (!(addr >= 0)) { log('ota address invalid', 'log-err'); return; }
+  await writeOta(EPF.buildOtaRead(EPF.OTA_CMD.READ_MEM, len, addr), 'READ_MEM 0x' + addr.toString(16));
+}
+async function otaAutoDump() {
+  if (state.otaDumpRunning) { log('dump already running', 'log-err'); return; }
+  if (!state.connected) { log('not connected', 'log-err'); return; }
+  if (!state.otaTx) { const ok = await otaStart(); if (!ok) return; }
+  let addr = parseNum($('ota-addr').value) >>> 0;
+  const total = Math.max(16, parseInt($('ota-total').value, 10) || 4096);
+  const block = Math.max(16, Math.min(256, parseInt($('ota-block').value, 10) || 128));
+  state.otaDumpRunning = true; state.otaDumpStop = false;
+  const before = state.otaLog.length; let done = 0, answered = 0, blocks = 0;
+  log('OTA auto-dump from 0x' + addr.toString(16) + ', ' + total + ' bytes in ' + block + '-byte blocks', 'log-tx');
+  while (done < total && !state.otaDumpStop) {
+    const n = Math.min(block, total - done);
+    await writeOta(EPF.buildOtaRead(EPF.OTA_CMD.READ_MEM, n, addr), 'READ_MEM 0x' + addr.toString(16));
+    const r = await waitOta(700); if (r) answered++;
+    addr = (addr + n) >>> 0; done += n; blocks++;
+    const p = $('ota-progress'); if (p) p.textContent = done + ' / ' + total + ' bytes, ' + answered + ' answers';
+    if (answered === 0 && blocks >= 3) { log('no answer after 3 blocks - the bootloader does not honor READ_MEM here (or wrong address). Stopping.', 'log-err'); break; }
+    await sleep(25);
+  }
+  state.otaDumpRunning = false;
+  const got = state.otaLog.length - before;
+  log('OTA auto-dump finished: ' + got + ' answers', got ? 'log-ok' : 'log-err');
+}
+function saveOtaBin() {
+  if (!state.otaLog.length) { log('no OTA data yet', 'log-err'); return; }
+  try {
+    const parts = state.otaLog.map(e => Uint8Array.from(e.bytes));
+    const totalLen = parts.reduce((n, a) => n + a.length, 0);
+    const out = new Uint8Array(totalLen); let o = 0;
+    for (const a of parts) { out.set(a, o); o += a.length; }
+    const blob = new Blob([out], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'epf-ble-dump.bin';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    log('OTA dump saved (' + totalLen + ' raw bytes incl. response headers)', 'log-ok');
+  } catch (e) { log('save failed: ' + e.message, 'log-err'); }
+}
+
 function baseReady() { return state.monitorSeen && state.baseParamsSeen; }
 
 async function sendBaseChange(changes) {
@@ -507,8 +653,7 @@ function applyCmd(r) {
   switch (r.kind) {
     case 'pwdOk':
       log('password/handshake accepted', 'log-ok');
-      // Persist the working password for this device only if "remember" is ticked.
-      try { if (state.deviceId && $('remember-pwd') && $('remember-pwd').checked && $('pwd-in').value) LS.set(skPwd(state.deviceId), $('pwd-in').value); } catch (e) {}
+      rememberPwdIfWanted();   // persist the working password for this device if "remember" is ticked
       break;
     case 'pwdFailed': log('password wrong (OK+PWD:N)', 'log-err'); break;
     case 'hasPwd': setSel('pwdprot-in', r.value); log('password protection on device: ' + (r.value ? 'yes' : 'no')); break;
@@ -797,6 +942,12 @@ function wireControls() {
   $('btn-reg-write').addEventListener('click', regWrite);
   $('btn-raw-send').addEventListener('click', rawSend);
 
+  { const b = $('btn-ota-start'); if (b) b.addEventListener('click', otaStart); }
+  { const b = $('btn-ota-readmem'); if (b) b.addEventListener('click', otaReadMem); }
+  { const b = $('btn-ota-dump'); if (b) b.addEventListener('click', otaAutoDump); }
+  { const b = $('btn-ota-stop'); if (b) b.addEventListener('click', () => { state.otaDumpStop = true; log('ota dump stop requested'); }); }
+  { const b = $('btn-ota-save'); if (b) b.addEventListener('click', saveOtaBin); }
+
   $('btn-qdevice').addEventListener('click', () => writeCmd(EPF.AT.deviceQuery(), 'AT+DEVICE?'));
   $('btn-quid').addEventListener('click', () => writeCmd(EPF.AT.uid(), 'AT+UID'));
   $('btn-qtype').addEventListener('click', () => writeCmd(EPF.AT.hasPwdQuery(), 'AT+TYPE?'));
@@ -832,7 +983,10 @@ function wireControls() {
   const rem = $('remember-pwd');
   if (rem) {
     rem.checked = LS.get(LS_REMEMBERPWD, '0') === '1';
-    rem.addEventListener('change', () => LS.set(LS_REMEMBERPWD, rem.checked ? '1' : '0'));
+    rem.addEventListener('change', () => {
+      LS.set(LS_REMEMBERPWD, rem.checked ? '1' : '0');
+      if (!rem.checked) { try { const last = LS.get(LS_LASTDEV, ''); if (last) localStorage.removeItem(skPwd(last)); } catch (e) {} }
+    });
   }
 }
 window.addEventListener('DOMContentLoaded', () => {
@@ -842,6 +996,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initLangSwitch();
   wireDocViewer();
   wireControls();
+  prefillSavedPwd();
   buildAdvRows();
   setControlsEnabled(false);
   setStatus('disconnected');

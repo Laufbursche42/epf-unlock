@@ -168,6 +168,19 @@ const EPF = (function () {
     return Uint8Array.from([HEAD_TRAN, OP.KEEP, 0xFD, END_TRAN]);
   }
 
+  // --- OTA / Bootloader read path (BLE-SoC, Goodix-Stil) --------------------------------------
+  // sendOP (BleCore.java:2351) baut OTA-Frames OHNE CRC über OTA_TX (02F0...FF01). Ein Lesebefehl
+  // (READ_MEM=8 / READ_DATA=6, dataLen=-1) ist exakt 7 Byte:
+  //   [code][len_lo][len_hi][addr0][addr1][addr2][addr3]   addr = 32-bit little-endian.
+  const OTA_CMD = { GET_STR_BASE: 1, READ_DATA: 6, READ_MEM: 8 };
+  function buildOtaRead(code, length, address) {
+    const a = address >>> 0, n = length & 0xffff;
+    return Uint8Array.from([code & 0xff, n & 0xff, (n >> 8) & 0xff, a & 0xff, (a >>> 8) & 0xff, (a >>> 16) & 0xff, (a >>> 24) & 0xff]);
+  }
+  // OTA-Session-Start exakt wie beim Flashen: GET_STR_BASE = sendOP(code=1,len=0,addr=0,dataLen=0)
+  // -> 9 Byte 01 00 00 00 00 00 00 00 00 (belegt in BleCore.updateOta, EventMode OTA_GET_ADDRESS).
+  function buildOtaGetStrBase() { return Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0, 0]); }
+
   function at(str) { return new TextEncoder().encode(str); }
   const AT = {
     pwd:            (p) => at("AT+PWD[" + p + "]"),
@@ -373,6 +386,7 @@ const EPF = (function () {
     buildRead, READ, buildMonitor, encodeSwitchByte, buildBaseParamsFrame,
     buildRwParam, buildSetMaxSpeed, buildSetRegWord, buildReadReg, advRegWord,
     buildControl, sendTran, sendPack, sendStopTran, buildKeep, AT,
+    OTA_CMD, buildOtaRead, buildOtaGetStrBase,
     parseCmd, parseData, parseMonitor, parseBaseParams, parseFullAdvParams, decodeSwitches,
   };
 })();
